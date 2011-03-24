@@ -1,0 +1,19 @@
+<package>
+  <description brief="kinect_icp">
+
+     Kinect_ICP
+
+  </description>
+  <author>RemoMeyer</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/Kinect_ICP</url>
+  <depend package="roscpp"/>
+  <depend package="std_msgs"/>
+  <depend package="sensor_msgs" />
+  <depend package="openni"/>
+  <depend package="pcl_ros" />
+
+</package>
+
+
