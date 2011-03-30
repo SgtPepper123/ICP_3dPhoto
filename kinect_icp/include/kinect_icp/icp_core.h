@@ -6,18 +6,22 @@
 
 namespace kinect_icp
 {
-	class IcpCore
-	{
-	public:
-		IcpCore();
-		void registerCloud(const PCloud::ConstPtr& new_point_cloud);
-		
-	private:
-		
-		
-		//Members
-		std::vector<PCloud::ConstPtr> m_Clouds;
+
+class IcpCore
+{
+public:
+  IcpCore(ros::Publisher publisher);
+  
+  void registerCloud(const PCloud::ConstPtr& new_point_cloud);
+
+private:
+
+  //Members
+	std::vector<PCloud::ConstPtr> m_Clouds;
+  ros::Publisher publisher_;
 	
-	};
+};
+
 }
+
 #endif
