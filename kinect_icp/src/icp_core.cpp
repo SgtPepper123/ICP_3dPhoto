@@ -10,10 +10,12 @@ IcpCore::IcpCore(ros::Publisher publisher) : publisher_(publisher)
 void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 { 
 	ROS_INFO("Received");
-	if(m_Clouds.begin()!=m_Clouds.end())
+	if(Clouds_.begin()!=Clouds_.end())
 	{
-		IcpLocal algorithm(*(m_Clouds.end()-1),new_point_cloud);
+		IcpLocal algorithm(*(Clouds_.end()-1),new_point_cloud);
 		algorithm.Compute();		
 	} 
-	m_Clouds.push_back(new_point_cloud);//*/
+	Clouds_.push_back(new_point_cloud);
+
+  publisher_.publish(new_point_cloud);
 }
