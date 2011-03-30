@@ -12,6 +12,12 @@ namespace kinect_icp
 
 typedef pcl::PointCloud<pcl::PointXYZRGB> PCloud;
 
+struct MatchedPoint {
+  int first_index;
+  int second_index;
+  double distance;
+};
+
 class IcpLocal
 {
 public:
@@ -24,7 +30,7 @@ private:
   PCloud* first_;
   PCloud* second_;
   
-  std::vector< std::pair<int, int> > selected_;
+  std::vector< MatchedPoint > selected_;
 
   //SomeMatrixClass m_RelativeTransformation;  
 

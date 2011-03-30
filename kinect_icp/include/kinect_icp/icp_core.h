@@ -19,10 +19,10 @@ private:
   //Members
   std::vector<PCloud::ConstPtr> Clouds_;
 
+  ros::Publisher publisher_;
+
   PCloud* cloud1_;
   PCloud* cloud2_;
-
-  ros::Publisher publisher_;
 };
 
 }
