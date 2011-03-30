@@ -15,14 +15,14 @@ typedef pcl::PointCloud<pcl::PointXYZRGB> PCloud;
 class IcpLocal
 {
 public:
-  IcpLocal(const PCloud::ConstPtr& first, const PCloud::ConstPtr& second);
+  IcpLocal(PCloud* first, PCloud* second);
   void Compute(/*SomeMatrixClass initialTransformation*/);
 
   //SomeMatrixClass GetTransformation();  
 
 private:
-  PCloud::ConstPtr First_;
-  PCloud::ConstPtr Second_;
+  PCloud* First_;
+  PCloud* Second_;
 
   //SomeMatrixClass m_RelativeTransformation;  
 

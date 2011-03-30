@@ -3,7 +3,7 @@
 
 using namespace kinect_icp;
 
-IcpLocal::IcpLocal(const PCloud::ConstPtr& first, const PCloud::ConstPtr& second)
+IcpLocal::IcpLocal(PCloud* first, PCloud* second)
 : First_(first)
 , Second_(second)
 {
