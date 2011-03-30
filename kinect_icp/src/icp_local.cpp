@@ -58,19 +58,23 @@ void IcpLocal::Selection()
 
 void IcpLocal::Matching()
 {
-  int jmax = selected_.size();
-  for (int j=0; j<jmax; j++)
+  int imax = selected_.size();
+  for (int i=0; i<imax; i++)
   {
-    float min = numeric_limits<float>::max();
+    selected_[i].distance = numeric_limits<float>::max();
 
-    int imax = first_->points.size();
-    for (int i=0; i<imax; i++)
+    int jmax = first_->points.size();
+    for (int j=0; j<jmax; j++)
     {
       float dist_x = first_->points[j].x - second_->points[selected_[i].first_index].x;
       float dist_y = first_->points[j].y - second_->points[selected_[i].first_index].y;
       float dist_z = first_->points[j].z - second_->points[selected_[i].first_index].z;
 
       float dist = dist_x*dist_x + dist_y*dist_y + dist_z*dist_z;
+      if (dist < selected_[i].distance) {
+        selected_[i].distance = dist;
+        selected_[i].second_index = j;
+      }
     }
   }
 }
