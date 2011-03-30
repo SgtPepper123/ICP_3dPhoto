@@ -33,7 +33,11 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 		
 void IcpLocal::Selection()
 {
-	
+  BOOST_FOREACH (pcl::PointXYZRGB& pt, first_->points) {
+    BOOST_FOREACH (pcl::PointXYZRGB& pt, selected_->points) {
+
+    }
+  }
 }
 
 void IcpLocal::Matching()
