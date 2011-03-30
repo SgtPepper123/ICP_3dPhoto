@@ -23,6 +23,8 @@ public:
 private:
   PCloud* First_;
   PCloud* Second_;
+  
+  std::vector<int> Selected_;
 
   //SomeMatrixClass m_RelativeTransformation;  
 
