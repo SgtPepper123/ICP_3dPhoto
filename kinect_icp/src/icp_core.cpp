@@ -4,7 +4,7 @@ using namespace kinect_icp;
 
 IcpCore::IcpCore(ros::Publisher publisher) : publisher_(publisher)
 {
-  m_Clouds.reserve(1000);
+  Clouds_.reserve(1000);
 }
 
 void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)

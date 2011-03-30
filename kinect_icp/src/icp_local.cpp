@@ -4,8 +4,8 @@
 using namespace kinect_icp;
 
 IcpLocal::IcpLocal(const PCloud::ConstPtr& first, const PCloud::ConstPtr& second)
-: m_First(first)
-, m_Second(second)
+: First_(first)
+, Second_(second)
 {
 }
 	
