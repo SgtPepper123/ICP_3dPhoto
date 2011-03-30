@@ -81,7 +81,15 @@ void IcpLocal::Matching()
 
 void IcpLocal::Rejecting()
 {
-	
+  const double threshold = 10;
+
+  int threshold_squared = threshold*threshold;
+  int imax = selected_.size();
+  for (int i=0; i<imax; i++)
+  {
+    selected_.rejected = selected_[i].distance > threshold_squared;
+    printf("%f, ", selected_[i].distance);
+  }
 }
 
 float IcpLocal::Minimization()

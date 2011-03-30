@@ -16,6 +16,7 @@ struct MatchedPoint {
   int first_index;
   int second_index;
   float distance;
+  bool rejected;
 };
 
 class IcpLocal
