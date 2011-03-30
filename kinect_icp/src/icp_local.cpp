@@ -1,11 +1,13 @@
 
 #include "kinect_icp/icp_local.h"
+#include "time.h"
 
 using namespace kinect_icp;
+using namespace std;
 
 IcpLocal::IcpLocal(PCloud* first, PCloud* second)
-: First_(first)
-, Second_(second)
+: first_(first)
+, second_(second)
 {
 }
 	
@@ -33,6 +35,7 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 		
 void IcpLocal::Selection()
 {
+  //srand()
 	
 }
 

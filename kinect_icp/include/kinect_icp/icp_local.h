@@ -21,10 +21,10 @@ public:
   //SomeMatrixClass GetTransformation();  
 
 private:
-  PCloud* First_;
-  PCloud* Second_;
+  PCloud* first_;
+  PCloud* second_;
   
-  std::vector<int> Selected_;
+  std::vector<int> selected_;
 
   //SomeMatrixClass m_RelativeTransformation;  
 
