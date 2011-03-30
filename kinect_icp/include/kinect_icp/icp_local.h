@@ -15,7 +15,7 @@ typedef pcl::PointCloud<pcl::PointXYZRGB> PCloud;
 struct MatchedPoint {
   int first_index;
   int second_index;
-  double distance;
+  float distance;
 };
 
 class IcpLocal
