@@ -15,32 +15,49 @@ typedef union
   long long_value;
 } RGBValue;
 
-IcpCore::IcpCore(ros::Publisher publisher) : publisher_(publisher)
+IcpCore::IcpCore(ros::Publisher publisher) : publisher_(publisher), cloud1_(NULL), cloud2_(NULL)
 {
   Clouds_.reserve(1000);
 }
 
 void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 { 
-  ROS_INFO("Received");
-  if(Clouds_.begin()!=Clouds_.end())
-  {
-    IcpLocal algorithm(*(Clouds_.end()-1),new_point_cloud);
-    algorithm.Compute();		
-  } 
-  //Clouds_.push_back(new_point_cloud);
+  ROS_DEBUG("Received Point Cloud");
 
-  PCloud cloud(*new_point_cloud);
+  if (!cloud1_) {
+    cloud1_ = new PCloud(*new_point_cloud);
+    return;
+  }
 
-  BOOST_FOREACH (pcl::PointXYZRGB& pt, cloud.points) {
-    RGBValue color;
-    color.float_value = pt.rgb;
-    color.Red = 0;
-    color.Green = 0;
-    color.Blue = 255;
-    //printf ("%i\n", color.Red);
+  cloud2_ = new PCloud(*new_point_cloud);
+
+  //IcpLocal algorithm(cloud1_,cloud2_);
+  //algorithm.Compute(); 
+
+  RGBValue color;
+  //color.float_value = pt.rgb;
+  color.Red = 0;
+  color.Green = 0;
+  color.Blue = 255;
+
+  BOOST_FOREACH (pcl::PointXYZRGB& pt, cloud1_->points) {
+    pt.rgb = color.float_value;
+  }
+  
+  color.Blue = 0;
+  color.Red = 255;
+  
+  BOOST_FOREACH (pcl::PointXYZRGB& pt, cloud2_->points) {
     pt.rgb = color.float_value;
   }
 
-  publisher_.publish(cloud);
+  *cloud1_ += *cloud2_;
+
+  publisher_.publish(*cloud1_);
+
+  delete cloud1_;
+  delete cloud2_;
+  
+  cloud1_ = NULL;
+  cloud2_ = NULL;
 }
