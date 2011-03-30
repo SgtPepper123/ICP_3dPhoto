@@ -43,14 +43,13 @@ void IcpLocal::Selection()
   int count = first_->points.size();
   selected_.clear();
   selected_.reserve(SelectionAmount);
+  MatchedPoint mp;
   while(i < SelectionAmount)
   {
-    int index = rand()%count;
-    float x = first_->points[index].x;
+    mp.first_index = rand()%count;
+    float x = first_->points[mp.first_index].x;
     if(x==x){    
-      selected_.push_back(make_pair(index,0));
-      cout << index << endl;
-      
+      selected_.push_back(mp);      
     }
   }
 	
