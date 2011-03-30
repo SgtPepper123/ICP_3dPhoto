@@ -21,7 +21,7 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
     Matching();
     Rejecting();
     error = Minimization();
-  } while(abs(old_error-error) > ITERATION_THRESHOLD);
+  } while (abs(old_error-error) > ITERATION_THRESHOLD);
 }
 
 		
