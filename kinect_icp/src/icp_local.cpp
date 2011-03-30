@@ -14,6 +14,7 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second)
 
 void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 {
+  ROS_INFO("IcpLocal::Compute");
   float error = std::numeric_limits<float>::max();
   float old_error;
   do
@@ -33,9 +34,25 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 }
 */  
 		
+#define SelectionAmount 100
+		
 void IcpLocal::Selection()
 {
-  //srand()
+  srand(time(NULL));
+  int i = 0;
+  int count = first_->points.size();
+  selected_.clear();
+  selected_.reserve(SelectionAmount);
+  while(i < SelectionAmount)
+  {
+    int index = rand()%count;
+    float x = first_->points[index].x;
+    if(x==x){    
+      selected_.push_back(make_pair(index,0));
+      cout << index << endl;
+      
+    }
+  }
 	
 }
 

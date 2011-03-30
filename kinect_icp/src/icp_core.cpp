@@ -31,8 +31,8 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 
   cloud2_ = new PCloud(*new_point_cloud);
 
-  //IcpLocal algorithm(cloud1_,cloud2_);
-  //algorithm.Compute(); 
+  IcpLocal algorithm(cloud1_,cloud2_);
+  algorithm.Compute(); 
 
   RGBValue color;
   //color.float_value = pt.rgb;

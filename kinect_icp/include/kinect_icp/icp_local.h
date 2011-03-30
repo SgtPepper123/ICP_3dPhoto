@@ -24,7 +24,7 @@ private:
   PCloud* first_;
   PCloud* second_;
   
-  std::vector<int> selected_;
+  std::vector< std::pair<int, int> > selected_;
 
   //SomeMatrixClass m_RelativeTransformation;  
 
