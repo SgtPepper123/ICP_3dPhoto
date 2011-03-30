@@ -15,7 +15,7 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     IcpLocal algorithm(*(Clouds_.end()-1),new_point_cloud);
     algorithm.Compute();		
   } 
-  Clouds_.push_back(new_point_cloud);
+  //Clouds_.push_back(new_point_cloud);
 
   publisher_.publish(new_point_cloud);
 }
