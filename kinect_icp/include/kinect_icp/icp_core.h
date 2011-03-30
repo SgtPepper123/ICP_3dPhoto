@@ -16,7 +16,7 @@ namespace kinect_icp
 		
 		
 		//Members
-		std::vector<int> m_Clouds;
+		std::vector<PCloud::ConstPtr> m_Clouds;
 	
 	};
 }
