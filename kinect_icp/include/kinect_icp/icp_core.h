@@ -17,9 +17,8 @@ public:
 private:
 
   //Members
-	std::vector<PCloud::ConstPtr> m_Clouds;
+  std::vector<PCloud::ConstPtr> m_Clouds;
   ros::Publisher publisher_;
-	
 };
 
 }

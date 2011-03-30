@@ -16,4 +16,6 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     //algorithm.compute();
   } 
   m_Clouds.push_back(new_point_cloud);
+
+  publisher_.publish(new_point_cloud);
 }
