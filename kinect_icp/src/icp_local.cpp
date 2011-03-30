@@ -86,7 +86,7 @@ void IcpLocal::Rejecting()
   int imax = selected_.size();
   for (int i=0; i<imax; i++)
   {
-    selected_.rejected = selected_[i].distance > threshold_squared;
+    selected_[i].rejected = selected_[i].distance > threshold_squared;
     printf("%f, ", selected_[i].distance);
   }
 }
