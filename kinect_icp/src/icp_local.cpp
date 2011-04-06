@@ -34,13 +34,6 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
     error = Minimization();
   }// while (abs(old_error-error) > ITERATION_THRESHOLD);
 }
-
-		
-/*SomeMatrixClass IcpLocal::GetTransformation()
-{
-	return asdkasdkljas;
-}
-*/  
 		
 void IcpLocal::Selection()
 {
