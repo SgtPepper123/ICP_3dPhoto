@@ -137,11 +137,10 @@ float IcpLocal::Minimization()
     A(n, 0) = normal(2)*source.y - normal(1)*source.z;
     A(n, 1) = normal(0)*source.z - normal(2)*source.x;
     A(n, 2) = normal(1)*source.x - normal(0)*source.y;
-      
 
-    for (int z=1; z<3; z++) {
-
-    }
+    A(n, 3) = normal(0);
+    A(n, 4) = normal(1);
+    A(n, 5) = normal(2);
   }
 
 /*  Matrix2f A, b;
