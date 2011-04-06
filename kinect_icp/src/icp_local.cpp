@@ -84,7 +84,7 @@ void IcpLocal::Matching()
         
         float dist = pcl::squaredEuclideanDistance(SecondPoint,FirstPoint);
         
-        Eigen::Vector3f normal;
+        Vector3f normal;
 
         if (dist < selected_[i].distance && ComputeNormal(j,k,normal)) 
         {
@@ -97,7 +97,7 @@ void IcpLocal::Matching()
   }
 }
 
-bool IcpLocal::ComputeNormal(int j, int k, Eigen::Vector3f& normal)
+bool IcpLocal::ComputeNormal(int j, int k, Vector3f& normal)
 {
   const Point& North = (*second_)(j-1,k);
   if(!pcl::hasValidXYZ(North))
@@ -111,8 +111,8 @@ bool IcpLocal::ComputeNormal(int j, int k, Eigen::Vector3f& normal)
   const Point& East = (*second_)(j,k+1);
   if(!pcl::hasValidXYZ(East))
     return false;
-  Eigen::Vector3f e0(South.x - North.x,South.y - North.y,South.z - North.z);
-  Eigen::Vector3f e1(East.x - West.x,East.y - West.y,East.z - West.z);
+  Vector3f e0(South.x - North.x,South.y - North.y,South.z - North.z);
+  Vector3f e1(East.x - West.x,East.y - West.y,East.z - West.z);
   normal = e0.cross(e1);
   normal.normalize();
   return true;
@@ -138,7 +138,7 @@ void IcpLocal::Rejecting()
      printf("%f, ", selected_[i].);
     }*/
     //printf("%f, ", selected_[i].distance);
-    std::cout << "normal: " << selected_[i].normal << std::endl;
+    cout << "normal: " << selected_[i].normal << endl;
   }
 }
 
