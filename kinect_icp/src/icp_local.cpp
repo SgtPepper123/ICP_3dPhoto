@@ -12,6 +12,7 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second)
 : first_(first)
 , second_(second)
 {
+  //transformation_.loadIdentity();
 }
 	
 
@@ -50,9 +51,12 @@ void IcpLocal::Selection()
   MatchedPoint mp;
   while(i < SelectionAmount)
   {
-    mp.first_index = rand()%count;
-    float x = first_->points[mp.first_index].x;
-    if(x==x){    
+    int index = rand()%count;
+    const Point& tmp = first_->points[index];
+    if(pcl::hasValidXYZ(tmp)){
+      Vector4f pnt(tmp.x,tmp.y,tmp.z,1.0);
+      pnt = transformation_ * pnt;    
+      mp.first_point = Vector3f(pnt.x(),pnt.y(),pnt.z()); 
       selected_.push_back(mp);      
       i++;
     }
@@ -67,7 +71,7 @@ void IcpLocal::Matching()
   {
     selected_[i].distance = numeric_limits<float>::max();
 
-    const Point& FirstPoint = first_->points[selected_[i].first_index];
+    Vector3f FirstPoint = selected_[i].first_point;
     
     int jmax = second_->width;
     int kmax = second_->height;
@@ -82,14 +86,16 @@ void IcpLocal::Matching()
           continue;
         }
         
-        float dist = pcl::squaredEuclideanDistance(SecondPoint,FirstPoint);
+        Vector3f SecondPnt(SecondPoint.x,SecondPoint.y,SecondPoint.z);
+        Vector3f Dist = FirstPoint-SecondPnt;
+        float dist = Dist.dot(Dist);
         
         Vector3f normal;
 
         if (dist < selected_[i].distance && ComputeNormal(j,k,normal)) 
         {
           selected_[i].distance = dist;
-          selected_[i].second_index = k*jmax + j;
+          selected_[i].second_point = SecondPnt;
           selected_[i].normal = normal;
         }          
       }
@@ -151,22 +157,23 @@ float IcpLocal::Minimization()
 
   for (int n = 0; n < N; n++) {
     // Fill in A
-    Eigen::Vector3f normal = selected_[n].normal;
-    Point source = first_->points[selected_[n].first_index];
+    Vector3f normal = selected_[n].normal;
+    Vector3f& source = selected_[n].first_point;
 
-    A(n, 0) = normal(2)*source.y - normal(1)*source.z;
-    A(n, 1) = normal(0)*source.z - normal(2)*source.x;
-    A(n, 2) = normal(1)*source.x - normal(0)*source.y;
+    A(n, 0) = normal(2)*source(1) - normal(1)*source(2);
+    A(n, 1) = normal(0)*source(2) - normal(2)*source(0);
+    A(n, 2) = normal(1)*source(0) - normal(0)*source(1);
 
     A(n, 3) = normal(0);
     A(n, 4) = normal(1);
     A(n, 5) = normal(2);
 
     // Fill in b
-    Point dest = second_->points[selected_[n].second_index];
-    b(n) = normal(0)*(dest.x-source.x) +
-           normal(1)*(dest.y-source.y) +
-           normal(2)*(dest.z-source.z);
+    Vector3f dest_source = selected_[n].second_point - source;
+    b(n) = normal.dot(dest_source);
+            //(0)*(dest.x()-source.x()) +
+           //normal(1)*(dest.y()-source.y()) +
+           //normal(2)*(dest.z()-source.z());
   }
 
   // Least squares solve
