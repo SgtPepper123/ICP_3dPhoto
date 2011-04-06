@@ -89,9 +89,7 @@ void IcpLocal::Matching()
         if (dist < selected_[i].distance && ComputeNormal(j,k,normal)) 
         {
           selected_[i].distance = dist;
-          selected_[i].second_index = j*kmax + k;
-          if(second_->points[selected_[i].second_index].x!=second_->points[selected_[i].second_index].x)
-            cout << "alert" << endl;
+          selected_[i].second_index = k*jmax + j;
           selected_[i].normal = normal;
         }          
       }
@@ -140,7 +138,7 @@ void IcpLocal::Rejecting()
      printf("%f, ", selected_[i].);
     }*/
     //printf("%f, ", selected_[i].distance);
-    cout << "normal: " << selected_[i].normal << endl;
+    //cout << "normal: " << selected_[i].normal << endl;
   }
 }
 
