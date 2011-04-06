@@ -146,8 +146,8 @@ float IcpLocal::Minimization()
 {
   int N = selected_.size();
   
-  Matrix<double, Dynamic, 6> A(N, 6);
-  Matrix<double, Dynamic, 1> b(N, 1);
+  Matrix<double, Dynamic, Dynamic> A(N, 6);
+  Matrix<double, Dynamic, Dynamic> b(N, 1);
 
   for (int n = 0; n < N; n++) {
     // Fill in A
