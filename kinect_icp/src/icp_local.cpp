@@ -68,9 +68,9 @@ void IcpLocal::Matching()
     
     int jmax = second_->height;
     int kmax = second_->width;
-    for (int j=0; j<jmax; j++)
+    for (int j=1; j<jmax-1; j++)
     {
-      for (int k=0; k<kmax; k++)
+      for (int k=1; k<kmax-1; k++)
       {
         const Point& SecondPoint = (*second_)(j,k);
         if(!pcl::hasValidXYZ((*second_)(j,k)))
@@ -96,8 +96,23 @@ void IcpLocal::Matching()
 
 bool IcpLocal::ComputeNormal(int j, int k, Eigen::Vector3f& normal)
 {
-  return false;
-  //if(second_)
+  const Point& North = (*second_)(j-1,k);
+  if(!pcl::hasValidXYZ(North))
+    return false;
+  const Point& South = (*second_)(j+1,k);
+  if(!pcl::hasValidXYZ(South))
+    return false;
+  const Point& West = (*second_)(j,k-1);
+  if(!pcl::hasValidXYZ(West))
+    return false;
+  const Point& East = (*second_)(j,k+1);
+  if(!pcl::hasValidXYZ(East))
+    return false;
+  Eigen::Vector3f e0(South.x - North.x,South.y - North.y,South.z - North.z);
+  Eigen::Vector3f e1(East.x - West.x,East.y - West.y,East.z - West.z);
+  normal = e0.cross(e1);
+  normal.normalize();
+  return true;
 }
 
 
@@ -119,7 +134,8 @@ void IcpLocal::Rejecting()
 
      printf("%f, ", selected_[i].);
     }*/
-    printf("%f, ", selected_[i].distance);
+    //printf("%f, ", selected_[i].distance);
+    std::cout << "normal: " << selected_[i].normal << std::endl;
   }
 }
 
