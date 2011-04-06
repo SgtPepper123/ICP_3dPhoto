@@ -35,6 +35,7 @@ private:
   std::vector< MatchedPoint > selected_;
   int selectedCount_;
   float average_;
+  float change_;
   
   Eigen::Matrix4f transformation_;
 

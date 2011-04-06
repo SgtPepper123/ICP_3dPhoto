@@ -8,7 +8,7 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
-#define SelectionAmount 100
+#define SelectionAmount 1000
 		
 IcpLocal::IcpLocal(PCloud* first, PCloud* second)
 : first_(first)
@@ -16,6 +16,7 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second)
 , selectedCount_(0)
 , transformation_(Matrix4f::Identity())
 {
+  srand(time(NULL));
 }
 	
 
@@ -37,7 +38,6 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 void IcpLocal::Selection()
 {
   ROS_INFO("IcpLocal::Selection");
-  srand(time(NULL));
   int i = 0;
   int count = first_->points.size();
   selected_.clear();
@@ -174,7 +174,21 @@ float IcpLocal::Minimization()
   }
 
   // Least squares solve
+  
+  Matrix<double, Dynamic, Dynamic> TransformParams(6, 1);  
+  TransformParams = A.jacobiSvd(ComputeThinU | ComputeThinV).solve(b);
+  
+  Matrix4f Transformation = Matrix4f::Identity();
+  Transformation.topLeftCorner(3,3) = (AngleAxisf(TransformParams(0), Vector3f::UnitX()) * AngleAxisf(TransformParams(1),  Vector3f::UnitY()) * AngleAxisf(TransformParams(2), Vector3f::UnitZ())).;
+  Transformation.topRightCorner(3,1) = Vector3f(TransformParams(3),TransformParams(4),TransformParams(5));
+  
+  cout << Transformation << endl;
+  
+  transformation_ *= Transformation;
+  
+  change_ = TransformParams.norm();
+
   cout << "Result: ";
-  cout << A.jacobiSvd(ComputeThinU | ComputeThinV).solve(b) << endl;
-  return 0.f;
+  cout << TransformParams << endl;
+  return change_;
 }

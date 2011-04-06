@@ -1,6 +1,7 @@
 #include "kinect_icp/icp_core.h"
 
 using namespace kinect_icp;
+using namespace std;
 
 typedef union
 {
@@ -32,6 +33,15 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
   cloud2_ = new PCloud(*new_point_cloud);
 
   IcpLocal algorithm(cloud1_,cloud2_);
+  cout << "iteration 1:" << endl;
+  algorithm.Compute(); 
+  cout << "iteration 2:" << endl;
+  algorithm.Compute(); 
+  cout << "iteration 3:" << endl;
+  algorithm.Compute(); 
+  cout << "iteration 4:" << endl;
+  algorithm.Compute(); 
+  cout << "iteration 5:" << endl;
   algorithm.Compute(); 
 
   RGBValue color;
