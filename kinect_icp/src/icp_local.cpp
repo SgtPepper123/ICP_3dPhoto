@@ -11,8 +11,8 @@ using namespace std;
 IcpLocal::IcpLocal(PCloud* first, PCloud* second)
 : first_(first)
 , second_(second)
+, transformation_(Matrix4f::Identity())
 {
-  //transformation_.loadIdentity();
 }
 	
 
@@ -88,7 +88,7 @@ void IcpLocal::Matching()
         
         Vector3f SecondPnt(SecondPoint.x,SecondPoint.y,SecondPoint.z);
         Vector3f Dist = FirstPoint-SecondPnt;
-        float dist = Dist.dot(Dist);
+        float dist = Dist.squaredNorm();
         
         Vector3f normal;
 
@@ -150,6 +150,7 @@ void IcpLocal::Rejecting()
 
 float IcpLocal::Minimization()
 {
+  ROS_INFO("IcpLocal::Minimization");
   int N = selected_.size();
   
   Matrix<double, Dynamic, Dynamic> A(N, 6);
