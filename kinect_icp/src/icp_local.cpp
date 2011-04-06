@@ -51,8 +51,8 @@ void IcpLocal::Selection()
     float x = first_->points[mp.first_index].x;
     if(x==x){    
       selected_.push_back(mp);      
+      i++;
     }
-    i++;
   }
 }
 
