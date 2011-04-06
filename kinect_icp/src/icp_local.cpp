@@ -8,9 +8,13 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
+#define SelectionAmount 100
+		
 IcpLocal::IcpLocal(PCloud* first, PCloud* second)
 : first_(first)
 , second_(second)
+, selected_(SelectionAmount)
+, selectedCount_(0)
 , transformation_(Matrix4f::Identity())
 {
 }
@@ -37,8 +41,6 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 	return asdkasdkljas;
 }
 */  
-		
-#define SelectionAmount 100
 		
 void IcpLocal::Selection()
 {
@@ -132,19 +134,14 @@ void IcpLocal::Rejecting()
 
   int threshold_squared = threshold*threshold;
   int imax = selected_.size();
+  selectedCount_ = imax;
   for (int i=0; i<imax; i++)
   {
     selected_[i].rejected = selected_[i].distance > threshold_squared;
-    /*if(selected_[i].rejected)
+    if(selected_[i].rejected)
     {
-       float dist_x = first_->points[j].x - second_->points[selected_[i].first_index].x;
-      float dist_y = first_->points[j].y - second_->points[selected_[i].first_index].y;
-      float dist_z = first_->points[j].z - second_->points[selected_[i].first_index].z;
-
-     printf("%f, ", selected_[i].);
-    }*/
-    //printf("%f, ", selected_[i].distance);
-    //cout << "normal: " << selected_[i].normal << endl;
+      --selectedCount_;
+    }
   }
 }
 
@@ -153,10 +150,15 @@ float IcpLocal::Minimization()
   ROS_INFO("IcpLocal::Minimization");
   int N = selected_.size();
   
-  Matrix<double, Dynamic, Dynamic> A(N, 6);
-  Matrix<double, Dynamic, Dynamic> b(N, 1);
+  Matrix<double, Dynamic, Dynamic> A(selectedCount_, 6);
+  Matrix<double, Dynamic, Dynamic> b(selectedCount_, 1);
 
+  int i = 0;
   for (int n = 0; n < N; n++) {
+    if(selected_[n].rejected)
+    {
+      continue;
+    }
     // Fill in A
     Vector3f normal = selected_[n].normal;
     Vector3f& source = selected_[n].first_point;
@@ -172,9 +174,8 @@ float IcpLocal::Minimization()
     // Fill in b
     Vector3f dest_source = selected_[n].second_point - source;
     b(n) = normal.dot(dest_source);
-            //(0)*(dest.x()-source.x()) +
-           //normal(1)*(dest.y()-source.y()) +
-           //normal(2)*(dest.z()-source.z());
+    
+    ++i;
   }
 
   // Least squares solve

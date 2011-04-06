@@ -33,6 +33,7 @@ private:
   PCloud* second_;
   
   std::vector< MatchedPoint > selected_;
+  int selectedCount_;
   
   Eigen::Matrix4f transformation_;
 
