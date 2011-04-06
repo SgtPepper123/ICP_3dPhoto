@@ -64,12 +64,12 @@ void IcpLocal::Matching()
   {
     selected_[i].distance = numeric_limits<float>::max();
 
-    int jmax = first_->points.size();
+    int jmax = second_->points.size();
     for (int j=0; j<jmax; j++)
     {
-      float dist_x = first_->points[j].x - second_->points[selected_[i].first_index].x;
-      float dist_y = first_->points[j].y - second_->points[selected_[i].first_index].y;
-      float dist_z = first_->points[j].z - second_->points[selected_[i].first_index].z;
+      float dist_x = second_->points[j].x - first_->points[selected_[i].first_index].x;
+      float dist_y = second_->points[j].y - first_->points[selected_[i].first_index].y;
+      float dist_z = second_->points[j].z - first_->points[selected_[i].first_index].z;
 
       float dist = dist_x*dist_x + dist_y*dist_y + dist_z*dist_z;
       if (dist < selected_[i].distance) {
@@ -90,6 +90,14 @@ void IcpLocal::Rejecting()
   for (int i=0; i<imax; i++)
   {
     selected_[i].rejected = selected_[i].distance > threshold_squared;
+    /*if(selected_[i].rejected)
+    {
+       float dist_x = first_->points[j].x - second_->points[selected_[i].first_index].x;
+      float dist_y = first_->points[j].y - second_->points[selected_[i].first_index].y;
+      float dist_z = first_->points[j].z - second_->points[selected_[i].first_index].z;
+
+     printf("%f, ", selected_[i].);
+    }*/
     printf("%f, ", selected_[i].distance);
   }
 }
