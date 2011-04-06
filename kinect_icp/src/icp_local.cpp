@@ -69,11 +69,11 @@ void IcpLocal::Matching()
 
     const Point& FirstPoint = first_->points[selected_[i].first_index];
     
-    int jmax = second_->height;
-    int kmax = second_->width;
-    for (int j=1; j<jmax-1; j++)
+    int jmax = second_->width;
+    int kmax = second_->height;
+    for (int k=1; k<kmax-1; k++)
     {
-      for (int k=1; k<kmax-1; k++)
+      for (int j=1; j<jmax-1; j++)
       {
         const Point& SecondPoint = (*second_)(j,k);
         if(!pcl::hasValidXYZ((*second_)(j,k)))
@@ -90,6 +90,8 @@ void IcpLocal::Matching()
         {
           selected_[i].distance = dist;
           selected_[i].second_index = j*kmax + k;
+          if(second_->points[selected_[i].second_index].x!=second_->points[selected_[i].second_index].x)
+            cout << "alert" << endl;
           selected_[i].normal = normal;
         }          
       }
