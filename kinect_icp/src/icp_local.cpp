@@ -1,7 +1,10 @@
 
 #include "kinect_icp/icp_local.h"
 #include "time.h"
+#include <Eigen/Dense>
+#include <iostream>
 
+using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
@@ -125,5 +128,28 @@ void IcpLocal::Rejecting()
 
 float IcpLocal::Minimization()
 {
+  int N = selected_.size();
+  Matrix<double, Dynamic, 6> A(N, 6);
+  for (int n = 0; n < N; n++) {
+    Eigen::Vector3f normal = selected_[n].normal;
+    Point source = first_->points[selected_[n].first_index];
+
+    A(n, 0) = normal(2)*source.y - normal(1)*source.z;
+    A(n, 1) = normal(0)*source.z - normal(2)*source.x;
+    A(n, 2) = normal(1)*source.x - normal(0)*source.y;
+      
+
+    for (int z=1; z<3; z++) {
+
+    }
+  }
+
+/*  Matrix2f A, b;
+  A << 2, -1, -1, 3;
+  b << 1, 2, 3, 1;
+  cout << "Here is the matrix A:\n" << A << endl;
+  cout << "Here is the right hand side b:\n" << b << endl;
+  Matrix2f x = A.ldlt().solve(b);
+  cout << "The solution is:\n" << x << endl;*/
   return 0.f;
 }
