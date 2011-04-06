@@ -13,7 +13,6 @@ using namespace std;
 IcpLocal::IcpLocal(PCloud* first, PCloud* second)
 : first_(first)
 , second_(second)
-, selected_(SelectionAmount)
 , selectedCount_(0)
 , transformation_(Matrix4f::Identity())
 {
@@ -62,6 +61,7 @@ void IcpLocal::Matching()
 {
   ROS_INFO("IcpLocal::Matching");
   int imax = selected_.size();
+  average_ = 0;
   for (int i=0; i<imax; i++)
   {
     selected_[i].distance = numeric_limits<float>::max();
@@ -95,7 +95,9 @@ void IcpLocal::Matching()
         }          
       }
     }
+    average_ += selected_[i].distance;
   }
+  average_ /= (float)selected_.size();
 }
 
 bool IcpLocal::ComputeNormal(int j, int k, Vector3f& normal)
@@ -123,19 +125,19 @@ bool IcpLocal::ComputeNormal(int j, int k, Vector3f& normal)
 void IcpLocal::Rejecting()
 {
   ROS_INFO("IcpLocal::Rejecting");
-  const double threshold = 10;
+  const float threshold = 1.5;
 
-  int threshold_squared = threshold*threshold;
   int imax = selected_.size();
   selectedCount_ = imax;
   for (int i=0; i<imax; i++)
   {
-    selected_[i].rejected = selected_[i].distance > threshold_squared;
+    selected_[i].rejected = selected_[i].distance > average_*threshold;
     if(selected_[i].rejected)
     {
       --selectedCount_;
     }
   }
+  cout << "Rejected percentage: " << (1.f -(float)selectedCount_/(float)imax)*100.f << "%%" <<endl;
 }
 
 float IcpLocal::Minimization()
@@ -156,17 +158,17 @@ float IcpLocal::Minimization()
     Vector3f normal = selected_[n].normal;
     Vector3f& source = selected_[n].first_point;
 
-    A(n, 0) = normal(2)*source(1) - normal(1)*source(2);
-    A(n, 1) = normal(0)*source(2) - normal(2)*source(0);
-    A(n, 2) = normal(1)*source(0) - normal(0)*source(1);
+    A(i, 0) = normal(2)*source(1) - normal(1)*source(2);
+    A(i, 1) = normal(0)*source(2) - normal(2)*source(0);
+    A(i, 2) = normal(1)*source(0) - normal(0)*source(1);
 
-    A(n, 3) = normal(0);
-    A(n, 4) = normal(1);
-    A(n, 5) = normal(2);
+    A(i, 3) = normal(0);
+    A(i, 4) = normal(1);
+    A(i, 5) = normal(2);
 
     // Fill in b
     Vector3f dest_source = selected_[n].second_point - source;
-    b(n) = normal.dot(dest_source);
+    b(i) = normal.dot(dest_source);
     
     ++i;
   }
