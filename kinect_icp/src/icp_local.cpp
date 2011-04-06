@@ -129,8 +129,12 @@ void IcpLocal::Rejecting()
 float IcpLocal::Minimization()
 {
   int N = selected_.size();
+  
   Matrix<double, Dynamic, 6> A(N, 6);
+  Matrix<double, Dynamic, 1> b(N, 1);
+
   for (int n = 0; n < N; n++) {
+    // Fill in A
     Eigen::Vector3f normal = selected_[n].normal;
     Point source = first_->points[selected_[n].first_index];
 
@@ -141,6 +145,12 @@ float IcpLocal::Minimization()
     A(n, 3) = normal(0);
     A(n, 4) = normal(1);
     A(n, 5) = normal(2);
+
+    // Fill in b
+    Point dest = second_->points[selected_[n].second_index];
+    b(n) = normal(0)*(dest.x-source.x) +
+           normal(1)*(dest.y-source.y) +
+           normal(2)*(dest.z-source.z);
   }
 
 /*  Matrix2f A, b;
