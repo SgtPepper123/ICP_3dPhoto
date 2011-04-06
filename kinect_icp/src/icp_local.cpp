@@ -153,12 +153,8 @@ float IcpLocal::Minimization()
            normal(2)*(dest.z-source.z);
   }
 
-/*  Matrix2f A, b;
-  A << 2, -1, -1, 3;
-  b << 1, 2, 3, 1;
-  cout << "Here is the matrix A:\n" << A << endl;
-  cout << "Here is the right hand side b:\n" << b << endl;
-  Matrix2f x = A.ldlt().solve(b);
-  cout << "The solution is:\n" << x << endl;*/
+  // Least squares solve
+  cout << "Result: ";
+  cout << A.jacobiSvd(ComputeThinU | ComputeThinV).solve(b) << endl;
   return 0.f;
 }
