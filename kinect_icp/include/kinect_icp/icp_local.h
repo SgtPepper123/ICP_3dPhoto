@@ -9,13 +9,13 @@
 
 namespace kinect_icp
 {
-
+typedef pcl::PointXYZRGB Point;
 typedef pcl::PointCloud<pcl::PointXYZRGB> PCloud;
 
 struct MatchedPoint {
   int first_index;
   int second_index;
-  pcl::PointXYZ normal;
+  Eigen::Vector3f normal;
   float distance;
   bool rejected;
 };
@@ -40,6 +40,8 @@ private:
   void Matching();
   void Rejecting();
   float Minimization();
+  
+  bool ComputeNormal(int j, int k, Eigen::Vector3f& normal);
 };
 
 }

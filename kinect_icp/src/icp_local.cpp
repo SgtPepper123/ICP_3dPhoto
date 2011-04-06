@@ -64,21 +64,42 @@ void IcpLocal::Matching()
   {
     selected_[i].distance = numeric_limits<float>::max();
 
-    int jmax = second_->points.size();
+    const Point& FirstPoint = first_->points[selected_[i].first_index];
+    
+    int jmax = second_->height;
+    int kmax = second_->width;
     for (int j=0; j<jmax; j++)
     {
-      float dist_x = second_->points[j].x - first_->points[selected_[i].first_index].x;
-      float dist_y = second_->points[j].y - first_->points[selected_[i].first_index].y;
-      float dist_z = second_->points[j].z - first_->points[selected_[i].first_index].z;
+      for (int k=0; k<kmax; k++)
+      {
+        const Point& SecondPoint = (*second_)(j,k);
+        if(!pcl::hasValidXYZ((*second_)(j,k)))
+        {
+          k++; //next will anyway not generate valid normal
+          continue;
+        }
+        
+        float dist = pcl::squaredEuclideanDistance(SecondPoint,FirstPoint);
+        
+        Eigen::Vector3f normal;
 
-      float dist = dist_x*dist_x + dist_y*dist_y + dist_z*dist_z;
-      if (dist < selected_[i].distance) {
-        selected_[i].distance = dist;
-        selected_[i].second_index = j;
+        if (dist < selected_[i].distance && ComputeNormal(j,k,normal)) 
+        {
+          selected_[i].distance = dist;
+          selected_[i].second_index = j*kmax + k;
+          selected_[i].normal = normal;
+        }          
       }
     }
   }
 }
+
+bool IcpLocal::ComputeNormal(int j, int k, Eigen::Vector3f& normal)
+{
+  return false;
+  //if(second_)
+}
+
 
 void IcpLocal::Rejecting()
 {
