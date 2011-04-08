@@ -13,8 +13,8 @@ typedef pcl::PointXYZRGB Point;
 typedef pcl::PointCloud<pcl::PointXYZRGB> PCloud;
 
 struct MatchedPoint {
-  int first_index;
-  int second_index;
+  Eigen::Vector3f first_point;
+  Eigen::Vector3f second_point;
   Eigen::Vector3f normal;
   float distance;
   bool rejected;
@@ -24,17 +24,19 @@ class IcpLocal
 {
 public:
   IcpLocal(PCloud* first, PCloud* second);
-  void Compute(/*SomeMatrixClass initialTransformation*/);
+  void Compute();
 
-  //SomeMatrixClass GetTransformation();  
+  const Eigen::Matrix4f& GetTransformation() const { return transformation_; };  
 
 private:
   PCloud* first_;
   PCloud* second_;
   
   std::vector< MatchedPoint > selected_;
-
-  //SomeMatrixClass m_RelativeTransformation;  
+  int selectedCount_;
+  float average_;
+  
+  Eigen::Matrix4f transformation_;
 
   void Selection();
   void Matching();

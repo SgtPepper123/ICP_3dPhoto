@@ -8,9 +8,13 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
+#define SelectionAmount 100
+		
 IcpLocal::IcpLocal(PCloud* first, PCloud* second)
 : first_(first)
 , second_(second)
+, selectedCount_(0)
+, transformation_(Matrix4f::Identity())
 {
 }
 	
@@ -29,15 +33,6 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
     error = Minimization();
   }// while (abs(old_error-error) > ITERATION_THRESHOLD);
 }
-
-		
-/*SomeMatrixClass IcpLocal::GetTransformation()
-{
-	return asdkasdkljas;
-}
-*/  
-		
-#define SelectionAmount 100
 		
 void IcpLocal::Selection()
 {
@@ -50,9 +45,12 @@ void IcpLocal::Selection()
   MatchedPoint mp;
   while(i < SelectionAmount)
   {
-    mp.first_index = rand()%count;
-    float x = first_->points[mp.first_index].x;
-    if(x==x){    
+    int index = rand()%count;
+    const Point& tmp = first_->points[index];
+    if(pcl::hasValidXYZ(tmp)){
+      Vector4f pnt(tmp.x,tmp.y,tmp.z,1.0);
+      pnt = transformation_ * pnt;    
+      mp.first_point = Vector3f(pnt.x(),pnt.y(),pnt.z()); 
       selected_.push_back(mp);      
       i++;
     }
@@ -63,11 +61,12 @@ void IcpLocal::Matching()
 {
   ROS_INFO("IcpLocal::Matching");
   int imax = selected_.size();
+  average_ = 0;
   for (int i=0; i<imax; i++)
   {
     selected_[i].distance = numeric_limits<float>::max();
 
-    const Point& FirstPoint = first_->points[selected_[i].first_index];
+    Vector3f FirstPoint = selected_[i].first_point;
     
     int jmax = second_->width;
     int kmax = second_->height;
@@ -82,19 +81,23 @@ void IcpLocal::Matching()
           continue;
         }
         
-        float dist = pcl::squaredEuclideanDistance(SecondPoint,FirstPoint);
+        Vector3f SecondPnt(SecondPoint.x,SecondPoint.y,SecondPoint.z);
+        Vector3f Dist = FirstPoint-SecondPnt;
+        float dist = Dist.squaredNorm();
         
         Vector3f normal;
 
         if (dist < selected_[i].distance && ComputeNormal(j,k,normal)) 
         {
           selected_[i].distance = dist;
-          selected_[i].second_index = k*jmax + j;
+          selected_[i].second_point = SecondPnt;
           selected_[i].normal = normal;
         }          
       }
     }
+    average_ += selected_[i].distance;
   }
+  average_ /= (float)selected_.size();
 }
 
 bool IcpLocal::ComputeNormal(int j, int k, Vector3f& normal)
@@ -122,51 +125,52 @@ bool IcpLocal::ComputeNormal(int j, int k, Vector3f& normal)
 void IcpLocal::Rejecting()
 {
   ROS_INFO("IcpLocal::Rejecting");
-  const double threshold = 10;
+  const float threshold = 1.5;
 
-  int threshold_squared = threshold*threshold;
   int imax = selected_.size();
+  selectedCount_ = imax;
   for (int i=0; i<imax; i++)
   {
-    selected_[i].rejected = selected_[i].distance > threshold_squared;
-    /*if(selected_[i].rejected)
+    selected_[i].rejected = selected_[i].distance > average_*threshold;
+    if(selected_[i].rejected)
     {
-       float dist_x = first_->points[j].x - second_->points[selected_[i].first_index].x;
-      float dist_y = first_->points[j].y - second_->points[selected_[i].first_index].y;
-      float dist_z = first_->points[j].z - second_->points[selected_[i].first_index].z;
-
-     printf("%f, ", selected_[i].);
-    }*/
-    //printf("%f, ", selected_[i].distance);
-    //cout << "normal: " << selected_[i].normal << endl;
+      --selectedCount_;
+    }
   }
+  cout << "Rejected percentage: " << (1.f -(float)selectedCount_/(float)imax)*100.f << "%%" <<endl;
 }
 
 float IcpLocal::Minimization()
 {
+  ROS_INFO("IcpLocal::Minimization");
   int N = selected_.size();
   
-  Matrix<double, Dynamic, Dynamic> A(N, 6);
-  Matrix<double, Dynamic, Dynamic> b(N, 1);
+  Matrix<double, Dynamic, Dynamic> A(selectedCount_, 6);
+  Matrix<double, Dynamic, Dynamic> b(selectedCount_, 1);
 
+  int i = 0;
   for (int n = 0; n < N; n++) {
+    if(selected_[n].rejected)
+    {
+      continue;
+    }
     // Fill in A
-    Eigen::Vector3f normal = selected_[n].normal;
-    Point source = first_->points[selected_[n].first_index];
+    Vector3f normal = selected_[n].normal;
+    Vector3f& source = selected_[n].first_point;
 
-    A(n, 0) = normal(2)*source.y - normal(1)*source.z;
-    A(n, 1) = normal(0)*source.z - normal(2)*source.x;
-    A(n, 2) = normal(1)*source.x - normal(0)*source.y;
+    A(i, 0) = normal(2)*source(1) - normal(1)*source(2);
+    A(i, 1) = normal(0)*source(2) - normal(2)*source(0);
+    A(i, 2) = normal(1)*source(0) - normal(0)*source(1);
 
-    A(n, 3) = normal(0);
-    A(n, 4) = normal(1);
-    A(n, 5) = normal(2);
+    A(i, 3) = normal(0);
+    A(i, 4) = normal(1);
+    A(i, 5) = normal(2);
 
     // Fill in b
-    Point dest = second_->points[selected_[n].second_index];
-    b(n) = normal(0)*(dest.x-source.x) +
-           normal(1)*(dest.y-source.y) +
-           normal(2)*(dest.z-source.z);
+    Vector3f dest_source = selected_[n].second_point - source;
+    b(i) = normal.dot(dest_source);
+    
+    ++i;
   }
 
   // Least squares solve
