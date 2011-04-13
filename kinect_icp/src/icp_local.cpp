@@ -8,7 +8,7 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
-#define SelectionAmount 5000
+#define SelectionAmount 200
 
 #define RED "\033[31m\033[1m\033[5m"
 #define GREEN "\033[32m\033[1m\033[5m"
@@ -111,14 +111,15 @@ void IcpLocal::Matching()
         }          
       }
     }
-    average_ += sqrt(selected_[i].distance);
+    selected_[i].distance = sqrt(selected_[i].distance);
+    average_ += selected_[i].distance;
   }
   average_ /= (float)selected_.size();
 }
 
 bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
 {
-  Matrix<double, 3, Dynamic> A(3, Radius*Radius);
+  Matrix<double, 3, Dynamic> A(3, pow(Radius*2+1,2));
   
   Vector3f average(0.0, 0.0, 0.0);
   
@@ -143,7 +144,7 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
     }
   }
 
-  if (count == 0) {
+  if (count < 4) {
     cerr << "ERROR, count = 0" << endl;
     exit(1);
   }
