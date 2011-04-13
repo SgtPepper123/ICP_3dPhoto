@@ -26,7 +26,11 @@ public:
   IcpLocal(PCloud* first, PCloud* second);
   void Compute();
 
-  const Eigen::Matrix4f& GetTransformation() const { return transformation_; };  
+  const Eigen::Matrix4f&  GetTransformation() const { return transformation_; };
+  float                   GetChange()         const { return change_; } 
+
+  //Testing
+  void TestMinimizeTranslate();
 
 private:
   PCloud* first_;
@@ -35,13 +39,14 @@ private:
   std::vector< MatchedPoint > selected_;
   int selectedCount_;
   float average_;
+  float change_;
   
   Eigen::Matrix4f transformation_;
 
   void Selection();
   void Matching();
   void Rejecting();
-  float Minimization();
+  float Minimization();  
   
   bool ComputeNormal(int j, int k, Eigen::Vector3f& normal);
 };
