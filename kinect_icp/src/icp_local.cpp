@@ -186,7 +186,7 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
     cout << "A:" << endl;
     cout << A << endl;
     cout << "EVS" << ev0 << "," << ev1 << "," << ev2 << endl;
-    exit(1);
+    return false;
   }
 
   return true;
