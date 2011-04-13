@@ -32,6 +32,7 @@ public:
   //Testing
   void TestMinimizeTranslate();
 
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 private:
   PCloud* first_;
   PCloud* second_;
