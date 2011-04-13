@@ -9,6 +9,12 @@ using namespace kinect_icp;
 using namespace std;
 
 #define SelectionAmount 1000
+
+#define RED "\033[31m\033[1m\033[5m"
+#define GREEN "\033[32m\033[1m\033[5m"
+#define YELLOW "\033[33m\033[1m\033[5m"
+#define BLUE "\033[34m\033[1m\033[5m"
+#define WHITE "\E[m"
 		
 IcpLocal::IcpLocal(PCloud* first, PCloud* second)
 : first_(first)
@@ -162,7 +168,9 @@ float IcpLocal::Minimization()
       Vector3f normal = selected_[n].normal;
       Vector3f& source = selected_[n].first_point;
       
-      Vector4f src = transformation_*Vector4f(source(0),source(1),source(2),1);
+      Vector4f src = transformation_*Vector4f(source(0),
+                                              source(1),
+                                              source(2),1);
       
       //selected_[n].first_point = Vector3f(src(0),src(1),src(2));
 
@@ -186,21 +194,28 @@ float IcpLocal::Minimization()
     Matrix<double, Dynamic, Dynamic> TransformParams(6, 1);  
     TransformParams = A.jacobiSvd(ComputeThinU | ComputeThinV).solve(b);
     
-    Transformation.topLeftCorner(3,3) = (AngleAxisf(TransformParams(0), Vector3f::UnitX()) * AngleAxisf(TransformParams(1),  Vector3f::UnitY()) * AngleAxisf(TransformParams(2), Vector3f::UnitZ())).toRotationMatrix();
-    Transformation.topRightCorner(3,1) = Vector3f(TransformParams(3),TransformParams(4),TransformParams(5));
-    
-    cout << "Params" << endl;
-    cout << TransformParams << endl;
+    Transformation.topLeftCorner(3,3) = (
+        AngleAxisf(TransformParams(0), Vector3f::UnitX()) *
+        AngleAxisf(TransformParams(1), Vector3f::UnitY()) *
+        AngleAxisf(TransformParams(2), Vector3f::UnitZ())
+        ).toRotationMatrix();
 
-    cout << "lastIter" << endl;
-    cout << Transformation << endl;  
+    Transformation.topRightCorner(3,1) = Vector3f(TransformParams(3),
+                                                  TransformParams(4),
+                                                  TransformParams(5));
+    
+    cout << GREEN << "Params" << endl;
+    cout << TransformParams << WHITE << endl;
+
+    cout << RED << "lastIter" << endl;
+    cout <<  Transformation << WHITE << endl;  
   
     transformation_ = Transformation * transformation_;
 
-    cout << "AllIter" << endl;
+    cout << BLUE << "AllIter" << endl;
     Matrix3f tmpMat = transformation_.topLeftCorner(3,3);
     cout << tmpMat.eulerAngles(0,1,2) << endl;
-    cout << transformation_ << endl;  
+    cout << transformation_ << WHITE << endl;  
     
     change_ = TransformParams.norm(); 
   }
@@ -231,9 +246,13 @@ float IcpLocal::Minimization()
   return change_;
 }
 
+
 void IcpLocal::TestMinimizeTranslate()
 {
-  Eigen::Matrix3f rot = (AngleAxisf(0.4f, Vector3f::UnitX()) * AngleAxisf(0.5f,  Vector3f::UnitY()) * AngleAxisf(0.6f, Vector3f::UnitZ())).toRotationMatrix();
+  Eigen::Matrix3f rot = (AngleAxisf(0.2f, Vector3f::UnitX()) *
+                         AngleAxisf(0.1f, Vector3f::UnitY()) *
+                         AngleAxisf(0.0f, Vector3f::UnitZ())
+                        ).toRotationMatrix();
   cout << rot << endl;
   selected_.clear();
   selected_.reserve(SelectionAmount);
