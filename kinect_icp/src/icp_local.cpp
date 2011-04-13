@@ -8,13 +8,15 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
-#define SelectionAmount 1000
+#define SelectionAmount 5000
 
 #define RED "\033[31m\033[1m\033[5m"
 #define GREEN "\033[32m\033[1m\033[5m"
 #define YELLOW "\033[33m\033[1m\033[5m"
 #define BLUE "\033[34m\033[1m\033[5m"
 #define WHITE "\E[m"
+
+#define PrintMinimizationMatrices
 		
 IcpLocal::IcpLocal(PCloud* first, PCloud* second)
 : first_(first)
@@ -31,14 +33,17 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
   ROS_INFO("IcpLocal::Compute");
   float error = std::numeric_limits<float>::max();
   float old_error;
-//  do
+  int iterations = 1;
+  do
   {
+    cout << "IcpIteration " << iterations << ":" << endl;
     old_error = error;
     Selection();
     Matching();
     Rejecting();
     error = Minimization();
-  }// while (abs(old_error-error) > ITERATION_THRESHOLD);
+    iterations++; 
+  }while(GetChange()>0.001 && iterations < 1);
 }
 		
 void IcpLocal::Selection()
@@ -54,9 +59,9 @@ void IcpLocal::Selection()
     int index = rand()%count;
     const Point& tmp = first_->points[index];
     if(pcl::hasValidXYZ(tmp)){
-      Vector4f pnt(tmp.x,tmp.y,tmp.z,1.0);
-      pnt = transformation_ * pnt;    
-      mp.first_point = Vector3f(pnt.x(),pnt.y(),pnt.z()); 
+      //Vector4f pnt(tmp.x,tmp.y,tmp.z,1.0);
+      //pnt = transformation_ * pnt;    
+      mp.first_point = Vector3f(tmp.x,tmp.y,tmp.z); 
       selected_.push_back(mp);      
       i++;
     }
@@ -71,8 +76,11 @@ void IcpLocal::Matching()
   for (int i=0; i<imax; i++)
   {
     selected_[i].distance = numeric_limits<float>::max();
-
-    Vector3f FirstPoint = selected_[i].first_point;
+    
+    Vector3f& tmp = selected_[i].first_point;
+    Vector4f pnt(tmp[0],tmp[1],tmp[2],1.0);
+    pnt = transformation_ * pnt;    
+    Vector3f FirstPoint = Vector3f(pnt[0],pnt[1],pnt[2]);
     
     int xmax = second_->width;
     int ymax = second_->height;
@@ -101,7 +109,7 @@ void IcpLocal::Matching()
         }          
       }
     }
-    average_ += selected_[i].distance;
+    average_ += sqrt(selected_[i].distance);
   }
   average_ /= (float)selected_.size();
 }
@@ -155,9 +163,12 @@ float IcpLocal::Minimization()
   Matrix<double, Dynamic, Dynamic> b(selectedCount_, 1);
 
   Matrix4f Transformation = Matrix4f::Identity();
-  for(int iteration = 0; iteration < 5; ++iteration)
+  change_ = 0;
+  for(int iteration = 0; iteration < 3; ++iteration)
   {
+#ifdef PrintMinimizationMatrices
     cout << "iteration " << iteration << ":" << endl;
+#endif
     int i = 0;
     for (int n = 0; n < N; n++) {
       if(selected_[n].rejected)
@@ -172,8 +183,6 @@ float IcpLocal::Minimization()
                                               source(1),
                                               source(2),1);
       
-      //selected_[n].first_point = Vector3f(src(0),src(1),src(2));
-
       A(i, 0) = normal(2)*src(1) - normal(1)*src(2);
       A(i, 1) = normal(0)*src(2) - normal(2)*src(0);
       A(i, 2) = normal(1)*src(0) - normal(0)*src(1);
@@ -204,6 +213,7 @@ float IcpLocal::Minimization()
                                                   TransformParams(4),
                                                   TransformParams(5));
     
+#ifdef PrintMinimizationMatrices
     cout << GREEN << "Params" << endl;
     cout << TransformParams << WHITE << endl;
 
@@ -216,8 +226,8 @@ float IcpLocal::Minimization()
     Matrix3f tmpMat = transformation_.topLeftCorner(3,3);
     cout << tmpMat.eulerAngles(0,1,2) << endl;
     cout << transformation_ << WHITE << endl;  
-    
-    change_ = TransformParams.norm(); 
+#endif    
+    change_ += TransformParams.norm(); 
   }
   
   /*float error = 0;
@@ -264,11 +274,12 @@ void IcpLocal::TestMinimizeTranslate()
   {
     for(int j = 0; j<10; ++j)
     {    
-      mp.second_point = Eigen::Vector3f(1.0f*i,1.0f*j,0.0);
-      mp.first_point = rot*mp.second_point;
-      //mp.first_point[0] += 0.1f;
-      //mp.first_point[1] += 0.2f;
-      //mp.first_point[2] += 0.3f;
+      Eigen::Vector3f pnt(1.0f*i,1.0f*j,0.0);
+      mp.second_point = pnt;
+      pnt[0] += 0.1f;
+      pnt[1] += 0.2f;
+      pnt[2] += 0.3f;
+      mp.first_point = rot*pnt;
       selected_.push_back(mp);      
     }
   }
@@ -279,11 +290,12 @@ void IcpLocal::TestMinimizeTranslate()
   {
     for(int j = 0; j<10; ++j)
     {    
-      mp.second_point = Eigen::Vector3f(0.f,1.0f*j,1.f*i);
-      mp.first_point = rot*mp.second_point;
-      //mp.first_point[0] += 0.1f;
-      //mp.first_point[1] += 0.2f;
-      //mp.first_point[2] += 0.3f;
+      Eigen::Vector3f pnt(0.f,1.0f*j,1.f*i);
+      mp.second_point = pnt;
+      pnt[0] += 0.1f;
+      pnt[1] += 0.2f;
+      pnt[2] += 0.3f;
+      mp.first_point = rot*pnt;
       selected_.push_back(mp);      
     }
   }
@@ -294,11 +306,12 @@ void IcpLocal::TestMinimizeTranslate()
   {
     for(int j = 0; j<10; ++j)
     {    
-      mp.second_point = Eigen::Vector3f(1.0f*j,0.f,1.f*i);
-      mp.first_point = rot*mp.second_point;
-      //mp.first_point[0] += 0.1f;
-      //mp.first_point[1] += 0.2f;
-      //mp.first_point[2] += 0.3f;
+      Eigen::Vector3f pnt(1.0f*j,0.f,1.f*i);
+      mp.second_point = pnt;
+      pnt[0] += 0.1f;
+      pnt[1] += 0.2f;
+      pnt[2] += 0.3f;
+      mp.first_point = rot*pnt;
       selected_.push_back(mp);      
     }
   }

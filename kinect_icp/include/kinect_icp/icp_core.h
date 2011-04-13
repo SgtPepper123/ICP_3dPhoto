@@ -23,6 +23,8 @@ private:
 
   PCloud* cloud1_;
   PCloud* cloud2_;
+  
+  IcpLocal* algorithm_;
 };
 
 }
