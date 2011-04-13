@@ -63,6 +63,8 @@ void IcpLocal::Selection()
   }
 }
 
+const int Radius = 2;
+
 void IcpLocal::Matching()
 {
   //ROS_INFO("IcpLocal::Matching");
@@ -76,9 +78,9 @@ void IcpLocal::Matching()
     
     int xmax = second_->width;
     int ymax = second_->height;
-    for (int y=1; y<ymax-1; y++)
+    for (int y=Radius; y<ymax-Radius; y++)
     {
-      for (int x=1; x<xmax-1; x++)
+      for (int x=Radius; x<xmax-Radius; x++)
       {
         const Point& SecondPoint = (*second_)(x,y);
         if(!pcl::hasValidXYZ((*second_)(x,y)))
@@ -106,24 +108,67 @@ void IcpLocal::Matching()
   average_ /= (float)selected_.size();
 }
 
-bool IcpLocal::ComputeNormal(int j, int k, Vector3f& normal)
+bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
 {
-  const Point& North = (*second_)(j-1,k);
-  if(!pcl::hasValidXYZ(North))
-    return false;
-  const Point& South = (*second_)(j+1,k);
-  if(!pcl::hasValidXYZ(South))
-    return false;
-  const Point& West = (*second_)(j,k-1);
-  if(!pcl::hasValidXYZ(West))
-    return false;
-  const Point& East = (*second_)(j,k+1);
-  if(!pcl::hasValidXYZ(East))
-    return false;
-  Vector3f e0(South.x - North.x,South.y - North.y,South.z - North.z);
-  Vector3f e1(East.x - West.x,East.y - West.y,East.z - West.z);
-  normal = e0.cross(e1);
-  normal.normalize();
+  Matrix<double, 3, Dynamic> A(3, Radius*Radius);
+  
+  Vector3f average(0.0, 0.0, 0.0);
+  
+  int count = 0;
+  for (int xdiff = -Radius; xdiff < Radius; xdiff++) {
+    for (int ydiff = -Radius; ydiff < Radius; ydiff++) {
+      const Point& current = (*second_)(x+xdiff, y+ydiff);
+
+      // Check if point is valid
+      if (!pcl::hasValidXYZ(current))
+        continue;
+
+      // Add point to average
+      average += Vector3f(current.x, current.y, current.z);
+
+      // Add point to matrix
+      A(0, count) = current.x;
+      A(1, count) = current.y;
+      A(2, count) = current.z;
+
+      count++;
+    }
+  }
+
+  if (count == 0) {
+    cerr << "ERROR, count = 0" << endl;
+    exit(1);
+  }
+
+  average /= count;
+
+  for (int i=0; i<count; i++) {
+    A(0, count) = A(0, count) - average(0);
+    A(1, count) = A(1, count) - average(1);
+    A(2, count) = A(2, count) - average(2);
+  }
+
+  A.resize(3, count);
+
+  Matrix<double, 3, 3> cov = A*A.transpose();
+  EigenSolver< Matrix<double, 3, 3> > es(cov);
+
+  float ev0 = abs(es.eigenvalues()[0]);
+  float ev1 = abs(es.eigenvalues()[1]);
+  float ev2 = abs(es.eigenvalues()[2]);
+
+  int i = 2;
+  if (ev0 < ev1 && ev0 < ev2) 
+    i = 0;
+  else if (ev1 < ev0 && ev1 < ev2)
+    i = 1;
+//  else
+//    normal = es.eigenvectors().col(2);
+
+  normal(0) = real(es.eigenvectors()(0, i));
+  normal(1) = real(es.eigenvectors()(1, i));
+  normal(2) = real(es.eigenvectors()(2, i));
+
   return true;
 }
 
