@@ -68,16 +68,16 @@ void IcpLocal::Matching()
 
     Vector3f FirstPoint = selected_[i].first_point;
     
-    int jmax = second_->width;
-    int kmax = second_->height;
-    for (int k=1; k<kmax-1; k++)
+    int xmax = second_->width;
+    int ymax = second_->height;
+    for (int y=1; y<ymax-1; y++)
     {
-      for (int j=1; j<jmax-1; j++)
+      for (int x=1; x<xmax-1; x++)
       {
-        const Point& SecondPoint = (*second_)(j,k);
-        if(!pcl::hasValidXYZ((*second_)(j,k)))
+        const Point& SecondPoint = (*second_)(x,y);
+        if(!pcl::hasValidXYZ((*second_)(x,y)))
         {
-          k++; //next will anyway not generate valid normal
+          y++; //next will anyway not generate valid normal
           continue;
         }
         
@@ -87,7 +87,7 @@ void IcpLocal::Matching()
         
         Vector3f normal;
 
-        if (dist < selected_[i].distance && ComputeNormal(j,k,normal)) 
+        if (dist < selected_[i].distance && ComputeNormal(x,y,normal)) 
         {
           selected_[i].distance = dist;
           selected_[i].second_point = SecondPnt;
