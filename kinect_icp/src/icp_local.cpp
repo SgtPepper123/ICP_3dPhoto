@@ -175,7 +175,7 @@ float IcpLocal::Minimization()
       A(i, 5) = normal(2);
 
       // Fill in b 
-      Vector3f dest_source = selected_[n].second_point - Vector3f(source(0),source(1),source(2));
+      Vector3f dest_source = selected_[n].second_point - Vector3f(src(0),src(1),src(2));
       b(i) = normal.dot(dest_source);
       
       ++i;
