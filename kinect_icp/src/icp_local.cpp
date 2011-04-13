@@ -119,13 +119,15 @@ void IcpLocal::Matching()
 
 bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
 {
-  Matrix<double, 3, Dynamic> A(3, pow(Radius*2+1,2));
-  
+  int diam = Radius*2+1;
+  diam *= diam;
+  Matrix<double, 3, Dynamic> A(3, diam);
+//  cout << "diam: " << diam << endl;
   Vector3f average(0.0, 0.0, 0.0);
   
   int count = 0;
-  for (int xdiff = -Radius; xdiff < Radius; xdiff++) {
-    for (int ydiff = -Radius; ydiff < Radius; ydiff++) {
+  for (int xdiff = -Radius; xdiff <= Radius; xdiff++) {
+    for (int ydiff = -Radius; ydiff <= Radius; ydiff++) {
       const Point& current = (*second_)(x+xdiff, y+ydiff);
 
       // Check if point is valid
@@ -152,9 +154,9 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
   average /= count;
 
   for (int i=0; i<count; i++) {
-    A(0, count) = A(0, count) - average(0);
-    A(1, count) = A(1, count) - average(1);
-    A(2, count) = A(2, count) - average(2);
+    A(0, i) = A(0, i) - average(0);
+    A(1, i) = A(1, i) - average(1);
+    A(2, i) = A(2, i) - average(2);
   }
 
   A.resize(3, count);
@@ -177,6 +179,15 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
   normal(0) = real(es.eigenvectors()(0, i));
   normal(1) = real(es.eigenvectors()(1, i));
   normal(2) = real(es.eigenvectors()(2, i));
+
+  if (normal.norm() > 1.1 || normal.norm() < 0.9 || normal.norm() != normal.norm()) {
+    cout << "PROBLEM" << endl;
+    cout << normal << endl;
+    cout << "A:" << endl;
+    cout << A << endl;
+    cout << "EVS" << ev0 << "," << ev1 << "," << ev2 << endl;
+    exit(1);
+  }
 
   return true;
 }
