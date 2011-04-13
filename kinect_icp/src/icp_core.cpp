@@ -30,19 +30,23 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     return;
   }
 
-  cloud2_ = new PCloud(*new_point_cloud);
+  cloud2_ = new PCloud(*cloud1_);
+
+  BOOST_FOREACH (pcl::PointXYZRGB& pt, cloud2_->points) {
+    pt.x += 0.1;
+  }  
 
   IcpLocal algorithm(cloud1_,cloud2_);
-  cout << "iteration 1:" << endl;
-  algorithm.Compute(); 
-  cout << "iteration 2:" << endl;
-  algorithm.Compute(); 
-  cout << "iteration 3:" << endl;
-  algorithm.Compute(); 
-  cout << "iteration 4:" << endl;
-  algorithm.Compute(); 
-  cout << "iteration 5:" << endl;
-  algorithm.Compute(); 
+  
+  algorithm.TestMinimizeTranslate();
+  
+  /*int iterations = 1;
+  do
+  {
+    cout << "iteration " << iterations << ":" << endl;
+    algorithm.Compute();
+    iterations++; 
+  }while(algorithm.GetChange()>0.0001 && iterations < 10);*/
 
   RGBValue color;
   //color.float_value = pt.rgb;

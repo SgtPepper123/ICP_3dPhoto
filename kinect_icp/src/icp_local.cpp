@@ -37,7 +37,7 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 		
 void IcpLocal::Selection()
 {
-  ROS_INFO("IcpLocal::Selection");
+  //ROS_INFO("IcpLocal::Selection");
   int i = 0;
   int count = first_->points.size();
   selected_.clear();
@@ -59,7 +59,7 @@ void IcpLocal::Selection()
 
 void IcpLocal::Matching()
 {
-  ROS_INFO("IcpLocal::Matching");
+  //ROS_INFO("IcpLocal::Matching");
   int imax = selected_.size();
   average_ = 0;
   for (int i=0; i<imax; i++)
@@ -124,8 +124,8 @@ bool IcpLocal::ComputeNormal(int j, int k, Vector3f& normal)
 
 void IcpLocal::Rejecting()
 {
-  ROS_INFO("IcpLocal::Rejecting");
-  const float threshold = 1.5;
+  //ROS_INFO("IcpLocal::Rejecting");
+  const float threshold = 0.8;
 
   int imax = selected_.size();
   selectedCount_ = imax;
@@ -142,53 +142,148 @@ void IcpLocal::Rejecting()
 
 float IcpLocal::Minimization()
 {
-  ROS_INFO("IcpLocal::Minimization");
+  //ROS_INFO("IcpLocal::Minimization");
   int N = selected_.size();
   
   Matrix<double, Dynamic, Dynamic> A(selectedCount_, 6);
   Matrix<double, Dynamic, Dynamic> b(selectedCount_, 1);
 
-  int i = 0;
+  Matrix4f Transformation = Matrix4f::Identity();
+  for(int iteration = 0; iteration < 5; ++iteration)
+  {
+    cout << "iteration " << iteration << ":" << endl;
+    int i = 0;
+    for (int n = 0; n < N; n++) {
+      if(selected_[n].rejected)
+      {
+        continue;
+      }
+      // Fill in A
+      Vector3f normal = selected_[n].normal;
+      Vector3f& source = selected_[n].first_point;
+      
+      Vector4f src = transformation_*Vector4f(source(0),source(1),source(2),1);
+      
+      //selected_[n].first_point = Vector3f(src(0),src(1),src(2));
+
+      A(i, 0) = normal(2)*src(1) - normal(1)*src(2);
+      A(i, 1) = normal(0)*src(2) - normal(2)*src(0);
+      A(i, 2) = normal(1)*src(0) - normal(0)*src(1);
+
+      A(i, 3) = normal(0);
+      A(i, 4) = normal(1);
+      A(i, 5) = normal(2);
+
+      // Fill in b 
+      Vector3f dest_source = selected_[n].second_point - Vector3f(source(0),source(1),source(2));
+      b(i) = normal.dot(dest_source);
+      
+      ++i;
+    }
+
+    // Least squares solve
+    
+    Matrix<double, Dynamic, Dynamic> TransformParams(6, 1);  
+    TransformParams = A.jacobiSvd(ComputeThinU | ComputeThinV).solve(b);
+    
+    Transformation.topLeftCorner(3,3) = (AngleAxisf(TransformParams(0), Vector3f::UnitX()) * AngleAxisf(TransformParams(1),  Vector3f::UnitY()) * AngleAxisf(TransformParams(2), Vector3f::UnitZ())).toRotationMatrix();
+    Transformation.topRightCorner(3,1) = Vector3f(TransformParams(3),TransformParams(4),TransformParams(5));
+    
+    cout << "Params" << endl;
+    cout << TransformParams << endl;
+
+    cout << "lastIter" << endl;
+    cout << Transformation << endl;  
+  
+    transformation_ = Transformation * transformation_;
+
+    cout << "AllIter" << endl;
+    Matrix3f tmpMat = transformation_.topLeftCorner(3,3);
+    cout << tmpMat.eulerAngles(0,1,2) << endl;
+    cout << transformation_ << endl;  
+    
+    change_ = TransformParams.norm(); 
+  }
+  
+  /*float error = 0;
   for (int n = 0; n < N; n++) {
     if(selected_[n].rejected)
     {
       continue;
     }
     // Fill in A
-    Vector3f normal = selected_[n].normal;
     Vector3f& source = selected_[n].first_point;
-
-    A(i, 0) = normal(2)*source(1) - normal(1)*source(2);
-    A(i, 1) = normal(0)*source(2) - normal(2)*source(0);
-    A(i, 2) = normal(1)*source(0) - normal(0)*source(1);
-
-    A(i, 3) = normal(0);
-    A(i, 4) = normal(1);
-    A(i, 5) = normal(2);
+    Vector4f tmp(source.x(),source.y(),source.z(),1);
+    
+    tmp = Transformation * tmp;
 
     // Fill in b
-    Vector3f dest_source = selected_[n].second_point - source;
-    b(i) = normal.dot(dest_source);
-    
-    ++i;
+    Vector3f dest_source = selected_[n].second_point - Vector3f(tmp.x(),tmp.y(),tmp.z());
+    error += dest_source.squaredNorm();
   }
-
-  // Least squares solve
   
-  Matrix<double, Dynamic, Dynamic> TransformParams(6, 1);  
-  TransformParams = A.jacobiSvd(ComputeThinU | ComputeThinV).solve(b);
+  error/=selectedCount_;
   
-  Matrix4f Transformation = Matrix4f::Identity();
-  Transformation.topLeftCorner(3,3) = (AngleAxisf(TransformParams(0), Vector3f::UnitX()) * AngleAxisf(TransformParams(1),  Vector3f::UnitY()) * AngleAxisf(TransformParams(2), Vector3f::UnitZ())).;
-  Transformation.topRightCorner(3,1) = Vector3f(TransformParams(3),TransformParams(4),TransformParams(5));
-  
-  cout << Transformation << endl;
-  
-  transformation_ *= Transformation;
-  
-  change_ = TransformParams.norm();
+  cout << "average before" << average_ << " after " << error << endl;*/
 
   cout << "Result: ";
-  cout << TransformParams << endl;
+  cout << change_ << endl;
   return change_;
 }
+
+void IcpLocal::TestMinimizeTranslate()
+{
+  Eigen::Matrix3f rot = (AngleAxisf(0.4f, Vector3f::UnitX()) * AngleAxisf(0.5f,  Vector3f::UnitY()) * AngleAxisf(0.6f, Vector3f::UnitZ())).toRotationMatrix();
+  cout << rot << endl;
+  selected_.clear();
+  selected_.reserve(SelectionAmount);
+  MatchedPoint mp;
+  mp.normal = Eigen::Vector3f(0.f,0.f,1.f);
+  mp.distance = 0.01f;
+  mp.rejected = false;
+  for(int i = 0; i<10; ++i)
+  {
+    for(int j = 0; j<10; ++j)
+    {    
+      mp.second_point = Eigen::Vector3f(1.0f*i,1.0f*j,0.0);
+      mp.first_point = rot*mp.second_point;
+      //mp.first_point[0] += 0.1f;
+      //mp.first_point[1] += 0.2f;
+      //mp.first_point[2] += 0.3f;
+      selected_.push_back(mp);      
+    }
+  }
+  mp.normal = Eigen::Vector3f(1.f,0.f,0.f);
+  mp.distance = 0.01f;
+  mp.rejected = false;
+  for(int i = 0; i<10; ++i)
+  {
+    for(int j = 0; j<10; ++j)
+    {    
+      mp.second_point = Eigen::Vector3f(0.f,1.0f*j,1.f*i);
+      mp.first_point = rot*mp.second_point;
+      //mp.first_point[0] += 0.1f;
+      //mp.first_point[1] += 0.2f;
+      //mp.first_point[2] += 0.3f;
+      selected_.push_back(mp);      
+    }
+  }
+  mp.normal = Eigen::Vector3f(0.f,1.f,0.f);
+  mp.distance = 0.01f;
+  mp.rejected = false;
+  for(int i = 0; i<10; ++i)
+  {
+    for(int j = 0; j<10; ++j)
+    {    
+      mp.second_point = Eigen::Vector3f(1.0f*j,0.f,1.f*i);
+      mp.first_point = rot*mp.second_point;
+      //mp.first_point[0] += 0.1f;
+      //mp.first_point[1] += 0.2f;
+      //mp.first_point[2] += 0.3f;
+      selected_.push_back(mp);      
+    }
+  }
+  selectedCount_ = selected_.size();
+  Minimization();
+}
+
