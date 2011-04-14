@@ -1,4 +1,3 @@
-
 #include "kinect_icp/icp_local.h"
 #include "time.h"
 #include <Eigen/Dense>
@@ -72,6 +71,12 @@ const int Radius = 2;
 
 void IcpLocal::Matching()
 {
+  /* X' = [R,t]X   transform
+     sx = X'       projection
+     x* = d(x)     distortion
+     q  = Kx*      pixel coordinates */
+
+
   //ROS_INFO("IcpLocal::Matching");
   int imax = selected_.size();
   average_ = 0;
@@ -96,8 +101,61 @@ void IcpLocal::Matching()
           y++; //next will anyway not generate valid normal
           continue;
         }
-        
+
         Vector3f SecondPnt(SecondPoint.x,SecondPoint.y,SecondPoint.z);
+
+        cout << "Point: " << SecondPnt << endl;
+        SecondPnt = SecondPnt / SecondPnt(2);
+        cout << "Point: " << SecondPnt << endl;
+        cout << "xy: " << x << "," << y << endl;
+
+        static float p1 = 0;
+        static float x1 = 0;
+
+        if (p1 == 0) {
+          p1 = SecondPnt(0);
+          x1 = x;
+        }
+
+
+        static float u = 0;
+        static float v = 0;
+
+        Matrix3f K;
+//        K << 525.0,   0.0, 319.5,
+        K << u,   0.0, v,
+               0.0, 525.0, 239.5,
+               0.0,   0.0,   1.0;
+
+        cout << "Projected: " << endl << K*SecondPnt << endl;
+       static int i=0;
+       cout << i << "------------------------" << endl;
+
+       if (i++ > 10) {
+
+        static float p2 = 0;
+        static float x2 = 0;
+
+        if (p2 == 0) {
+          p2 = SecondPnt(0);
+          x2 = x;
+        }
+
+        u = (x1 - x2)/(p1 - p2);
+        v = (x1 - u*p1);
+        cout << RED << "UV: " << u << "," << v << endl;
+        K << u,   0.0, v,
+               0.0, 525.0, 239.5,
+               0.0,   0.0,   1.0;
+        cout << "Projected: " << endl << K*SecondPnt << WHITE << endl;
+       }
+
+       static int j = 0;
+
+       if (j++ > 20)
+          exit(1);
+
+        
         Vector3f Dist = FirstPoint-SecondPnt;
         float dist = Dist.squaredNorm();
         
@@ -132,7 +190,7 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
 
       // Check if point is valid
       if (!pcl::hasValidXYZ(current))
-        continue;
+        return false;
 
       // Add point to average
       average += Vector3f(current.x, current.y, current.z);
