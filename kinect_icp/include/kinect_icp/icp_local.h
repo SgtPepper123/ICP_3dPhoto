@@ -16,6 +16,8 @@ struct MatchedPoint {
   Eigen::Vector3f first_point;
   Eigen::Vector3f second_point;
   Eigen::Vector3f normal;
+  int x;
+  int y;
   float distance;
   bool rejected;
 };
@@ -23,11 +25,13 @@ struct MatchedPoint {
 class IcpLocal
 {
 public:
-  IcpLocal(PCloud* first, PCloud* second);
+  IcpLocal(PCloud* first, PCloud* second, int iterations = 1);
   void Compute();
 
   const Eigen::Matrix4f&  GetTransformation() const { return transformation_; };
   float                   GetChange()         const { return change_; } 
+  
+  void                    SetMaxIterations(int iter){ maxIterations_ = iter; }
 
   //Testing
   void TestMinimizeTranslate();
@@ -36,8 +40,9 @@ public:
 private:
   PCloud* first_;
   PCloud* second_;
-  
+  int maxIterations_;
   std::vector< MatchedPoint > selected_;
+  
   int selectedCount_;
   float average_;
   float change_;

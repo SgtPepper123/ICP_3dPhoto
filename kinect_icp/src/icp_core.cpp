@@ -25,7 +25,7 @@ IcpCore::IcpCore(ros::Publisher publisher) : publisher_(publisher), cloud1_(NULL
 void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 { 
   ROS_DEBUG("Received Point Cloud");
-
+  
   if(!algorithm_)
   {
     if (!cloud1_) {
@@ -53,8 +53,10 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
   color.Green = 0;
   color.Blue = 255;
 
+  PCloud* OutCloud = new PCloud(*cloud1_);
+
   Eigen::Matrix4f mat = algorithm_->GetTransformation();
-  BOOST_FOREACH (pcl::PointXYZRGB& pt, cloud1_->points) {
+  BOOST_FOREACH (pcl::PointXYZRGB& pt, OutCloud->points) {
     Eigen::Vector4f pnt(pt.x,pt.y,pt.z,1.0);
     pnt = mat * pnt;
     pt.x = pnt[0];
@@ -70,11 +72,13 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     pt.rgb = color.float_value;
   }
 
-  PCloud OutCloud(*cloud1_);
-  
-  OutCloud += *cloud2_;
+  *OutCloud += *cloud2_;
 
-  publisher_.publish(OutCloud);
+  publisher_.publish(*OutCloud);
+  
+  delete OutCloud;
+  
+  algorithm_->SetMaxIterations(4);
 
   /*delete cloud1_;
   delete cloud2_;
