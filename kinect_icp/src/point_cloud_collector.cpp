@@ -15,6 +15,9 @@ int main(int argc, char **argv)
 	
   //entrypoint of the Icp Algorithm
   kinect_icp::IcpCore core(merged_pub);
+  
+  //set in which algorithm should run
+  //core.singleMerge_ = false;
 
   //create function pointer to registerCloud function in IcpCore 
   //then subscribe it with the rosout node, so all published pointclouds will be directed to the algorithm.
