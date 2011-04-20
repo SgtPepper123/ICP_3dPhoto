@@ -8,7 +8,7 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
-#define SelectionAmount 200
+#define SelectionAmount 1000
 
 #define RED "\033[31m\033[1m\033[5m"
 #define GREEN "\033[32m\033[1m\033[5m"
@@ -18,13 +18,15 @@ using namespace std;
 
 #define PrintMinimizationMatrices
 		
-IcpLocal::IcpLocal(PCloud* first, PCloud* second)
+IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
 : first_(first)
 , second_(second)
 , selectedCount_(0)
 , transformation_(Matrix4f::Identity())
+, maxIterations_(iterations)
 {
-  srand(time(NULL));
+  //srand(time(NULL));
+  srand(42);
 }
 	
 
@@ -43,12 +45,13 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
     Rejecting();
     error = Minimization();
     iterations++; 
-  }while(GetChange()>0.001 && iterations < 1);
+  }while(GetChange()>0.001 && iterations < maxIterations_);
+  ROS_INFO("IcpLocal::ComputeFinished");
 }
 		
 void IcpLocal::Selection()
 {
-  //ROS_INFO("IcpLocal::Selection");
+  ROS_INFO("IcpLocal::Selection");
   int i = 0;
   int count = first_->points.size();
   selected_.clear();
@@ -68,11 +71,11 @@ void IcpLocal::Selection()
   }
 }
 
-const int Radius = 2;
+const int Radius = 1;
 
 void IcpLocal::Matching()
 {
-  //ROS_INFO("IcpLocal::Matching");
+  ROS_INFO("IcpLocal::Matching");
   int imax = selected_.size();
   average_ = 0;
   for (int i=0; i<imax; i++)
@@ -101,13 +104,12 @@ void IcpLocal::Matching()
         Vector3f Dist = FirstPoint-SecondPnt;
         float dist = Dist.squaredNorm();
         
-        Vector3f normal;
-
-        if (dist < selected_[i].distance && ComputeNormal(x,y,normal)) 
+        if (dist < selected_[i].distance) 
         {
           selected_[i].distance = dist;
           selected_[i].second_point = SecondPnt;
-          selected_[i].normal = normal;
+          selected_[i].x = x;
+          selected_[i].y = y;
         }          
       }
     }
@@ -181,11 +183,13 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
   normal(2) = real(es.eigenvectors()(2, i));
 
   if (normal.norm() > 1.1 || normal.norm() < 0.9 || normal.norm() != normal.norm()) {
+
     cout << "PROBLEM" << endl;
     cout << normal << endl;
     cout << "A:" << endl;
     cout << A << endl;
     cout << "EVS" << ev0 << "," << ev1 << "," << ev2 << endl;
+
     return false;
   }
 
@@ -195,8 +199,8 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
 
 void IcpLocal::Rejecting()
 {
-  //ROS_INFO("IcpLocal::Rejecting");
-  const float threshold = 0.8;
+  ROS_INFO("IcpLocal::Rejecting");
+  const float threshold = 1.7;
 
   int imax = selected_.size();
   selectedCount_ = imax;
@@ -206,6 +210,19 @@ void IcpLocal::Rejecting()
     if(selected_[i].rejected)
     {
       --selectedCount_;
+    }
+    else
+    {
+        Vector3f normal;
+        //cout << RED << "NormalCoordinates" << selected_[i].x << ", " << selected_[i].y << WHITE << endl;
+        if(ComputeNormal(selected_[i].x,selected_[i].y,normal))
+        {
+           selected_[i].normal = normal;         
+        }else
+        {
+          selected_[i].rejected = true;
+          --selectedCount_;
+        }
     }
   }
   cout << "Rejected percentage: " << (1.f -(float)selectedCount_/(float)imax)*100.f << "%%" <<endl;
@@ -270,44 +287,23 @@ float IcpLocal::Minimization()
                                                   TransformParams(4),
                                                   TransformParams(5));
     
-#ifdef PrintMinimizationMatrices
-    cout << GREEN << "Params" << endl;
+#ifdef PrintMinimizationMatrices 
+    /*cout << GREEN << "Params" << endl;
     cout << TransformParams << WHITE << endl;
 
     cout << RED << "lastIter" << endl;
-    cout <<  Transformation << WHITE << endl;  
-  
+    cout <<  Transformation << WHITE << endl;*/  
+#endif    
     transformation_ = Transformation * transformation_;
-
+#ifdef PrintMinimizationMatrices 
     cout << BLUE << "AllIter" << endl;
-    Matrix3f tmpMat = transformation_.topLeftCorner(3,3);
-    cout << tmpMat.eulerAngles(0,1,2) << endl;
+    //Matrix3f tmpMat = transformation_.topLeftCorner(3,3);
+    //cout << tmpMat.eulerAngles(0,1,2) << endl;
     cout << transformation_ << WHITE << endl;  
 #endif    
     change_ += TransformParams.norm(); 
   }
   
-  /*float error = 0;
-  for (int n = 0; n < N; n++) {
-    if(selected_[n].rejected)
-    {
-      continue;
-    }
-    // Fill in A
-    Vector3f& source = selected_[n].first_point;
-    Vector4f tmp(source.x(),source.y(),source.z(),1);
-    
-    tmp = Transformation * tmp;
-
-    // Fill in b
-    Vector3f dest_source = selected_[n].second_point - Vector3f(tmp.x(),tmp.y(),tmp.z());
-    error += dest_source.squaredNorm();
-  }
-  
-  error/=selectedCount_;
-  
-  cout << "average before" << average_ << " after " << error << endl;*/
-
   cout << "Result: ";
   cout << change_ << endl;
   return change_;

@@ -13,6 +13,8 @@ public:
   IcpCore(ros::Publisher publisher);
   
   void registerCloud(const PCloud::ConstPtr& new_point_cloud);
+  
+  bool singleMerge_;
 
 private:
 
@@ -21,6 +23,7 @@ private:
 
   ros::Publisher publisher_;
 
+  PCloud* outCloud_;
   PCloud* cloud1_;
   PCloud* cloud2_;
   
