@@ -8,7 +8,7 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
-#define SelectionAmount 1000
+#define SelectionAmount 100
 
 #define RED "\033[31m\033[1m\033[5m"
 #define GREEN "\033[32m\033[1m\033[5m"
@@ -86,7 +86,7 @@ void IcpLocal::Matching()
     Vector4f pnt(tmp[0],tmp[1],tmp[2],1.0);
     pnt = transformation_ * pnt;    
     Vector3f FirstPoint = Vector3f(pnt[0],pnt[1],pnt[2]);
-    
+        
     int xmax = second_->width;
     int ymax = second_->height;
     for (int y=Radius; y<ymax-Radius; y++)
@@ -96,7 +96,7 @@ void IcpLocal::Matching()
         const Point& SecondPoint = (*second_)(x,y);
         if(!pcl::hasValidXYZ((*second_)(x,y)))
         {
-          y++; //next will anyway not generate valid normal
+          //x++; //next will anyway not generate valid normal
           continue;
         }
         
