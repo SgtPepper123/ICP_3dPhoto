@@ -21,9 +21,9 @@ using namespace std;
 IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
 : first_(first)
 , second_(second)
+, maxIterations_(iterations)
 , selectedCount_(0)
 , transformation_(Matrix4f::Identity())
-, maxIterations_(iterations)
 {
   //srand(time(NULL));
   srand(42);
@@ -45,7 +45,7 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
     Rejecting();
     error = Minimization();
     iterations++; 
-  }while(GetChange()>0.001 && iterations < maxIterations_);
+  }while(GetChange()>0.003 && iterations < maxIterations_);
   ROS_INFO("IcpLocal::ComputeFinished");
 }
 		
