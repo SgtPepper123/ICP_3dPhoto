@@ -78,15 +78,63 @@ void IcpLocal::Matching()
   ROS_INFO("IcpLocal::Matching");
   int imax = selected_.size();
   average_ = 0;
+  int good_count = 0;
   for (int i=0; i<imax; i++)
   {
-    selected_[i].distance = numeric_limits<float>::max();
+//    selected_[i].distance = numeric_limits<float>::max();
     
     Vector3f& tmp = selected_[i].first_point;
     Vector4f pnt(tmp[0],tmp[1],tmp[2],1.0);
-    pnt = transformation_ * pnt;    
+    
+    Matrix<float, 3, 4> P;
+    P << -525.0,      0, -319.5,  105,
+              0, -525.0, -239.5, 52.5,
+              0,      0,     -1,    0;  
+
+
+    pnt = transformation_ * pnt;
     Vector3f FirstPoint = Vector3f(pnt[0],pnt[1],pnt[2]);
+    
+    Vector3f coords = P * pnt;
+    int x = coords[1]/coords[3];
+    int y = coords[2]/coords[3];
+    
+    int xmax = second_->width;
+    int ymax = second_->height;
+
+    if (x < 0 || y < 0 || x >= xmax || y >= ymax) {
+      selected_[i].rejected = true;
+      continue;
+    }
+
+    const Point& SecondPoint = (*second_)(x,y);
+    if(!pcl::hasValidXYZ((*second_)(x,y)))
+    {
+      selected_[i].rejected = true;
+      continue;
+    }
+      
+    Vector3f SecondPnt(SecondPoint.x,SecondPoint.y,SecondPoint.z);
+    Vector3f Dist = FirstPoint-SecondPnt;
+    float dist = Dist.squaredNorm();
         
+    selected_[i].second_point = SecondPnt;
+    selected_[i].x = x;
+    selected_[i].y = y;
+
+    selected_[i].distance = sqrt(dist);
+    average_ += selected_[i].distance;
+    good_count++;
+  }
+
+  average_ /= (float)good_count;
+
+    // TODO optimize
+
+    
+
+
+/*
     int xmax = second_->width;
     int ymax = second_->height;
     for (int y=Radius; y<ymax-Radius; y++)
@@ -117,6 +165,7 @@ void IcpLocal::Matching()
     average_ += selected_[i].distance;
   }
   average_ /= (float)selected_.size();
+*/
 }
 
 bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
@@ -206,7 +255,9 @@ void IcpLocal::Rejecting()
   selectedCount_ = imax;
   for (int i=0; i<imax; i++)
   {
-    selected_[i].rejected = selected_[i].distance > average_*threshold;
+    if (!selected_[i].rejected)
+      selected_[i].rejected = selected_[i].distance > average_*threshold;
+
     if(selected_[i].rejected)
     {
       --selectedCount_;
