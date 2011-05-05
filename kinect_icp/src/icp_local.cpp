@@ -29,6 +29,7 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
   srand(42);
 }
 	
+#define MinValidIterations 3
 
 void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 {
@@ -36,6 +37,7 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
   float error = std::numeric_limits<float>::max();
   float old_error;
   int iterations = 1;
+  int validIterations = 0;
   do
   {
     cout << "IcpIteration " << iterations << ":" << endl;
@@ -45,7 +47,17 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
     Rejecting();
     error = Minimization();
     iterations++; 
-  }while(GetChange()>0.003 && iterations < maxIterations_);
+    if(GetChange()<0.01)
+    {
+      if(++validIterations == MinValidIterations)
+      {
+        break;
+      }else
+      {
+        validIterations = 0;
+      }
+    }
+  }while(iterations < maxIterations_);
   ROS_INFO("IcpLocal::ComputeFinished");
 }
 		
