@@ -35,12 +35,6 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
       }
 
       cloud2_ = new PCloud(*new_point_cloud);
-
-
-      BOOST_FOREACH (pcl::PointXYZRGB& pt, cloud2_->points) {
-        pt.x += 0.2;
-        pt.y += 0.1;
-      }  
    
       algorithm_ = new IcpLocal(cloud1_,cloud2_);
     }
@@ -97,15 +91,15 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
       pt.x = pnt[0];
       pt.y = pnt[1];
       pt.z = pnt[2];    
-      //pt.rgb = color.float_value;
+      pt.rgb = color.float_value;
     }
     
-    /*color.Blue = 0;
+    color.Blue = 0;
     color.Red = 255;
     
     BOOST_FOREACH (pcl::PointXYZRGB& pt, cloud2_->points) {
       pt.rgb = color.float_value;
-    }*/
+    }
     
     *outCloud_ += *cloud2_;
     

@@ -8,7 +8,7 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
-#define SelectionAmount 1000
+#define SelectionAmount 100
 
 #define RED "\033[31m\033[1m\033[5m"
 #define GREEN "\033[32m\033[1m\033[5m"
@@ -65,18 +65,18 @@ void IcpLocal::Selection()
 {
   ROS_INFO("IcpLocal::Selection");
   int i = 0;
-  int count = first_->points.size();
+  int width = first_->width;
+  int height = first_->height;
   selected_.clear();
   selected_.reserve(SelectionAmount);
   MatchedPoint mp;
   while(i < SelectionAmount)
   {
-    int index = rand()%count;
-    const Point& tmp = first_->points[index];
+    int x = rand()%width;
+    int y = rand()%height;
+    const Point& tmp = (*first_)(x,y);
     if(pcl::hasValidXYZ(tmp)){
-      //Vector4f pnt(tmp.x,tmp.y,tmp.z,1.0);
-      //pnt = transformation_ * pnt;    
-      mp.first_point = Vector3f(tmp.x,tmp.y,tmp.z); 
+      mp.first_point = Vector3f(tmp.x,tmp.y,tmp.z);
       selected_.push_back(mp);      
       i++;
     }
@@ -85,31 +85,32 @@ void IcpLocal::Selection()
 
 const int Radius = 1;
 
+// TODO optimize
 void IcpLocal::Matching()
 {
   ROS_INFO("IcpLocal::Matching");
   int imax = selected_.size();
   average_ = 0;
   int good_count = 0;
+  Matrix<float, 3, 4> P;
+  P <<  525.0,      0,  319.5,  0,
+            0,  525.0,  239.5,  0,
+            0,      0,      1,  0;  
+
   for (int i=0; i<imax; i++)
-  {
-//    selected_[i].distance = numeric_limits<float>::max();
-    
+  {    
     Vector3f& tmp = selected_[i].first_point;
     Vector4f pnt(tmp[0],tmp[1],tmp[2],1.0);
     
-    Matrix<float, 3, 4> P;
-    P << -525.0,      0, -319.5,  105,
-              0, -525.0, -239.5, 52.5,
-              0,      0,     -1,    0;  
-
     pnt = transformation_ * pnt;
     Vector3f FirstPoint = Vector3f(pnt[0],pnt[1],pnt[2]);
     
     Vector3f coords = P * pnt;
-    int x = coords[0]/coords[2];
-    int y = coords[1]/coords[2];
-        
+    
+    //+0.5 is there to round to nearst int and not just floor
+    int x = coords[0]/coords[2] + 0.5;
+    int y = coords[1]/coords[2] + 0.5;
+       
     int xmax = second_->width;
     int ymax = second_->height;
 
@@ -119,7 +120,7 @@ void IcpLocal::Matching()
     }
 
     const Point& SecondPoint = (*second_)(x,y);
-    if(!pcl::hasValidXYZ((*second_)(x,y)))
+    if(!pcl::hasValidXYZ(SecondPoint))
     {
       selected_[i].rejected = true;
       continue;
@@ -142,43 +143,6 @@ void IcpLocal::Matching()
 
   average_ /= (float)good_count;
 
-    // TODO optimize
-
-    
-
-
-/*
-    int xmax = second_->width;
-    int ymax = second_->height;
-    for (int y=Radius; y<ymax-Radius; y++)
-    {
-      for (int x=Radius; x<xmax-Radius; x++)
-      {
-        const Point& SecondPoint = (*second_)(x,y);
-        if(!pcl::hasValidXYZ((*second_)(x,y)))
-        {
-          //x++; //next will anyway not generate valid normal
-          continue;
-        }
-        
-        Vector3f SecondPnt(SecondPoint.x,SecondPoint.y,SecondPoint.z);
-        Vector3f Dist = FirstPoint-SecondPnt;
-        float dist = Dist.squaredNorm();
-        
-        if (dist < selected_[i].distance) 
-        {
-          selected_[i].distance = dist;
-          selected_[i].second_point = SecondPnt;
-          selected_[i].x = x;
-          selected_[i].y = y;
-        }          
-      }
-    }
-    selected_[i].distance = sqrt(selected_[i].distance);
-    average_ += selected_[i].distance;
-  }
-  average_ /= (float)selected_.size();
-*/
 }
 
 bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
@@ -211,8 +175,7 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
   }
 
   if (count < 4) {
-    cerr << "ERROR, count = 0" << endl;
-    exit(1);
+    return false;
   }
 
   average /= count;
@@ -246,12 +209,12 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
 
   if (normal.norm() > 1.1 || normal.norm() < 0.9 || normal.norm() != normal.norm()) {
 
-    cout << "PROBLEM" << endl;
+    /*cout << "PROBLEM" << endl;
     cout << normal << endl;
     cout << "A:" << endl;
     cout << A << endl;
     cout << "EVS" << ev0 << "," << ev1 << "," << ev2 << endl;
-
+    */
     return false;
   }
 
@@ -289,7 +252,7 @@ void IcpLocal::Rejecting()
         }
     }
   }
-  cout << "Rejected percentage: " << (1.f -(float)selectedCount_/(float)imax)*100.f << "%%" <<endl;
+  cout << "Rejected percentage: " << (1.f -(float)selectedCount_/(float)imax)*100.f << "%" <<endl;
 }
 
 float IcpLocal::Minimization()
