@@ -28,6 +28,7 @@ public:
   IcpLocal(PCloud* first, PCloud* second, int iterations = 1);
   void Compute();
 
+  void  SetTransformation(const Eigen::Matrix4f& mat)  { transformation_ = mat; };
   const Eigen::Matrix4f&  GetTransformation() const { return transformation_; };
   float                   GetChange()         const { return change_; } 
   

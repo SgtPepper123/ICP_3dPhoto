@@ -28,6 +28,8 @@ private:
   PCloud* cloud2_;
   
   IcpLocal* algorithm_;
+
+  Eigen::Matrix4f lastTransformation_;
 };
 
 }

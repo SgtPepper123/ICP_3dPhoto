@@ -8,7 +8,7 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
-#define SelectionAmount 100
+#define SelectionAmount 1000
 
 #define RED "\033[31m\033[1m\033[5m"
 #define GREEN "\033[32m\033[1m\033[5m"
@@ -16,7 +16,7 @@ using namespace std;
 #define BLUE "\033[34m\033[1m\033[5m"
 #define WHITE "\E[m"
 
-#define PrintMinimizationMatrices
+//#define PrintMinimizationMatrices
 		
 IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
 : first_(first)
