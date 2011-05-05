@@ -1,4 +1,4 @@
-function [K, R, t, error] = runDLT(xy, XYZ)
+function [K, R, t, P, error] = runDLT(xy, XYZ)
 
 %normalize data points
 [xy_normalized,XYZ_normalized,T,U] = normalization(xy,XYZ);
