@@ -75,7 +75,7 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
       }
       algorithm_ = new IcpLocal(cloud1_,cloud2_);
       
-      algorithm_->SetMaxIterations(12);
+      algorithm_->SetMaxIterations(200);
   }
 
   //algorithm.TestMinimizeTranslate();
