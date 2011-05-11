@@ -8,7 +8,7 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
-#define SelectionAmount 1000
+#define SelectionAmount 100
 
 #define RED "\033[31m\033[1m\033[5m"
 #define GREEN "\033[32m\033[1m\033[5m"
@@ -16,6 +16,20 @@ using namespace std;
 #define BLUE "\033[34m\033[1m\033[5m"
 #define WHITE "\E[m"
 
+typedef union
+{
+  struct /*anonymous*/
+  {
+    unsigned char Blue;
+    unsigned char Green;
+    unsigned char Red;
+    unsigned char Alpha;
+  };
+  float float_value;
+  long long_value;
+} RGBValue;
+
+#define PrintMinimizationMatrices
 //#define PrintMinimizationMatrices
 		
 IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
@@ -42,9 +56,10 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
   {
     cout << "IcpIteration " << iterations << ":" << endl;
     old_error = error;
-    Selection();
-    Matching();
-    Rejecting();
+    //Selection();
+    //Matching();
+    //Rejecting();
+    SelectMatchReject();
     error = Minimization();
     iterations++; 
     if(GetChange()<0.01)
@@ -59,6 +74,158 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
     }
   }while(iterations < maxIterations_);
   ROS_INFO("IcpLocal::ComputeFinished");
+}
+		
+const int MatchRadius =3;
+void IcpLocal::SelectMatchReject()
+{
+  ROS_INFO("IcpLocal::SelectMatchReject");
+  Matrix<float, 3, 4> P;
+  P <<  525.0,      0,  319.5,  0,
+            0,  525.0,  239.5,  0,
+            0,      0,      1,  0;  
+
+  int width = first_->width;    
+  int height = first_->height;
+  selected_.clear();
+  selected_.reserve(SelectionAmount);
+  
+  float sum = 0.f;
+  //average guessing
+  for (int i = 0; i < 10;)
+  {
+    const Point& tmp = (*first_)(rand()%width,rand()%height);
+    Vector4f p1(tmp.x, tmp.y, tmp.z, 1.f);
+    
+    p1 = transformation_ * p1;
+    
+    Vector3f coords = P * p1;
+    
+    //+0.5 is there to round to nearst int and not just floor
+    int x = coords[0]/coords[2] + 0.5;
+    int y = coords[1]/coords[2] + 0.5;
+       
+    int xmax = second_->width;
+    int ymax = second_->height;
+
+    if (x < 0 || y < 0 || x >= xmax || y >= ymax) {
+      continue;
+    }
+
+    const Point& SecondPoint = (*second_)(x,y);
+    if(!pcl::hasValidXYZ(SecondPoint))
+    {
+      continue;
+    }
+      
+    Vector4f p2(SecondPoint.x,SecondPoint.y,SecondPoint.z,1.0);
+    sum += (p1-p2).squaredNorm();
+    ++i; 
+  }
+    
+  for (int i = 0; i < SelectionAmount; )
+  {
+    MatchedPoint mp;
+    int x1 = rand()%width;
+    int y1 = rand()%height;
+    const Point& tmp = (*first_)(x1,y1);
+    if(pcl::hasValidXYZ(tmp)){
+      mp.first_point = Vector3f(tmp.x,tmp.y,tmp.z);
+      Vector4f p1(tmp.x, tmp.y, tmp.z, 1.f);
+      
+      p1 = transformation_ * p1;
+      
+      Vector3f coords = P * p1;
+      
+      //+0.5 is there to round to nearst int and not just floor
+      int x = coords[0]/coords[2] + 0.5;
+      int y = coords[1]/coords[2] + 0.5;
+         
+      int xmax = second_->width;
+      int ymax = second_->height;
+
+      if (x < MatchRadius || y < MatchRadius || x >= xmax-MatchRadius || y >= ymax-MatchRadius) {
+        continue;
+      }
+      
+      bool reject = true;
+      
+      int bestX = x;
+      int bestY = y;
+      Vector4f bestPoint;
+      float bestColorDist;
+      float bestDist;
+      
+      RGBValue color;
+      color.float_value = tmp.rgb;
+      Vector3f color1(color.Red, color.Green, color.Blue);
+            
+      for (int xx = x-MatchRadius; xx<=x+MatchRadius; ++xx)
+      {
+        for (int yy = y-MatchRadius; yy<=y+MatchRadius; ++yy)
+        {
+          const Point& SecondPoint = (*second_)(xx,yy);
+          if(!pcl::hasValidXYZ(SecondPoint))
+          {
+            continue;
+          }
+          
+          Vector4f p2(SecondPoint.x,SecondPoint.y,SecondPoint.z,1.0);
+          float dist = (p1-p2).squaredNorm();
+          
+          if(dist > 1.2 * sum/((float)(10+i)))
+          {
+            continue;
+          }
+          
+          color.float_value = SecondPoint.rgb;
+          Vector3f color2(color.Red, color.Green, color.Blue);
+          float colorDist = (color1 - color2).squaredNorm();
+          
+          if(reject)
+          {
+            reject = false;
+          }
+          else
+          {
+            if(colorDist > bestColorDist)
+            {
+              continue;
+            }
+          }
+          bestX = xx;
+          bestY = yy;
+          bestColorDist = colorDist;
+          bestDist = dist;                        
+        }
+      }
+      
+      if(reject)
+      {
+        continue;
+      }
+      
+
+      Vector3f normal;
+      //cout << RED << "NormalCoordinates" << selected_[i].x << ", " << selected_[i].y << WHITE << endl;
+      if(!ComputeNormal(bestX,bestY,normal))
+      {
+        continue;
+      }
+
+      sum += bestDist;
+        
+      mp.normal = normal;
+               
+      const Point& MatchedPoint = (*second_)(bestX,bestY);
+      mp.second_point = Vector3f(MatchedPoint.x, MatchedPoint.y, MatchedPoint.z);
+      mp.rejected = false;
+      selected_.push_back(mp);      
+      i++;
+    }
+  }
+  
+  selectedCount_ = selected_.size();
 }
 		
 void IcpLocal::Selection()
@@ -277,7 +444,7 @@ void IcpLocal::Rejecting()
 
 float IcpLocal::Minimization()
 {
-  //ROS_INFO("IcpLocal::Minimization");
+  ROS_INFO("IcpLocal::Minimization");
   int N = selected_.size();
   
   Matrix<double, Dynamic, Dynamic> A(selectedCount_, 6);
