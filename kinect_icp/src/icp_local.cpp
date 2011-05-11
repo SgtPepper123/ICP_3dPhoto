@@ -145,6 +145,26 @@ void IcpLocal::Matching()
 
 }
 
+bool IcpLocal::ComputeNormalSimple(int x, int y, Vector3f& normal,
+                                   int radius, const PCloud* cloud)
+{
+  const Point& point_1 = (*cloud)(x+radius, y);
+  const Point& point_2 = (*cloud)(x-radius, y);
+  const Point& point_3 = (*cloud)(x, y+radius);
+  const Point& point_4 = (*cloud)(x, y-radius);
+
+  if (!pcl::hasValidXYZ(point_1) || !pcl::hasValidXYZ(point_2) || !pcl::hasValidXYZ(point_3) || !pcl::hasValidXYZ(point_4))
+    return false;
+
+  Vector3f first(point_1.x-point_2.x, point_1.y-point_2.y, point_1.z-point_2.z);
+  Vector3f second(point_3.x-point_4.x, point_3.y-point_4.y, point_3.z-point_4.z);
+  
+  normal = first.cross(second);
+  normal.normalize();
+
+  return true;
+}
+
 bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal,
                              int radius, const PCloud* cloud)
 {
@@ -174,7 +194,7 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal,
     }
   }
 
-  if (count < 8) {
+  if (count < 4) {
     return false;
   }
 
