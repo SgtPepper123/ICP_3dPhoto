@@ -8,7 +8,7 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
-#define SelectionAmount 1000
+#define SelectionAmount 100
 
 #define RED "\033[31m\033[1m\033[5m"
 #define GREEN "\033[32m\033[1m\033[5m"
@@ -59,6 +59,70 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
     }
   }while(iterations < maxIterations_);
   ROS_INFO("IcpLocal::ComputeFinished");
+}
+		
+void IcpLocal::SelectMatchReject()
+{
+  ROS_INFO("IcpLocal::SelectMatchReject");
+  Matrix<float, 3, 4> P;
+  P <<  525.0,      0,  319.5,  0,
+            0,  525.0,  239.5,  0,
+            0,      0,      1,  0;  
+
+  int width = first_->width;    
+  int height = first_->height;
+  selected_.clear();
+  selected_.reserve(SelectionAmount);
+  
+  float average = 0.f;
+  //average guessing
+  for (int i = 0; i < 10;)
+  {
+    const Point& tmp = (*first_)(rand()%width,rand()%height);
+    Vector4f p1(tmp.x, tmp.y, tmp.z, 1.f);
+    
+    p1 = transformation_ * p1;
+    
+    Vector3f coords = P * p1;
+    
+    //+0.5 is there to round to nearst int and not just floor
+    int x = coords[0]/coords[2] + 0.5;
+    int y = coords[1]/coords[2] + 0.5;
+       
+    int xmax = second_->width;
+    int ymax = second_->height;
+
+    if (x < 0 || y < 0 || x >= xmax || y >= ymax) {
+      continue;
+    }
+
+    const Point& SecondPoint = (*second_)(x,y);
+    if(!pcl::hasValidXYZ(SecondPoint))
+    {
+      continue;
+    }
+      
+    Vector4f p2(SecondPoint.x,SecondPoint.y,SecondPoint.z,1.0);
+    average += (p1-p2).squaredNorm();
+    ++i; 
+  }
+  
+  average /= 10.f;
+  for (int i = 0; i < SelectionAmount; )
+  {
+    MatchedPoint mp;
+    int x = rand()%width;
+    int y = rand()%height;
+    const Point& tmp = (*first_)(x,y);
+    if(pcl::hasValidXYZ(tmp)){
+      mp.first_point = Vector3f(tmp.x,tmp.y,tmp.z);
+
+      
+      
+      selected_.push_back(mp);      
+      i++;
+    }
+  }
 }
 		
 void IcpLocal::Selection()

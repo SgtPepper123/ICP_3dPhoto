@@ -50,6 +50,7 @@ private:
   
   Eigen::Matrix4f transformation_;
 
+  void SelectMatchReject();
   void Selection();
   void Matching();
   void Rejecting();
