@@ -8,7 +8,7 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
-#define SelectionAmount 100
+#define SelectionAmount 1000
 
 #define RED "\033[31m\033[1m\033[5m"
 #define GREEN "\033[32m\033[1m\033[5m"
@@ -29,7 +29,6 @@ typedef union
   long long_value;
 } RGBValue;
 
-#define PrintMinimizationMatrices
 //#define PrintMinimizationMatrices
 		
 IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
@@ -56,10 +55,10 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
   {
     cout << "IcpIteration " << iterations << ":" << endl;
     old_error = error;
-    //Selection();
-    //Matching();
-    //Rejecting();
-    SelectMatchReject();
+    Selection();
+    Matching();
+    Rejecting();
+    //SelectMatchReject();
     error = Minimization();
     iterations++; 
     if(GetChange()<0.01)
