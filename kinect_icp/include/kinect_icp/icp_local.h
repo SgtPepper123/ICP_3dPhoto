@@ -33,6 +33,8 @@ public:
   float                   GetChange()         const { return change_; } 
   
   void                    SetMaxIterations(int iter){ maxIterations_ = iter; }
+  
+  static bool ComputeNormal(int x, int y, Eigen::Vector3f& normal, int radius, const PCloud* cloud);
 
   //Testing
   void TestMinimizeTranslate();
@@ -55,7 +57,6 @@ private:
   void Rejecting();
   float Minimization();  
   
-  bool ComputeNormal(int j, int k, Eigen::Vector3f& normal);
 };
 
 }

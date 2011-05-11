@@ -145,18 +145,18 @@ void IcpLocal::Matching()
 
 }
 
-bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
+bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal,
+                             int radius, const PCloud* cloud)
 {
-  int diam = Radius*2+1;
+  int diam = radius*2+1;
   diam *= diam;
   Matrix<double, 3, Dynamic> A(3, diam);
-//  cout << "diam: " << diam << endl;
   Vector3f average(0.0, 0.0, 0.0);
   
   int count = 0;
-  for (int xdiff = -Radius; xdiff <= Radius; xdiff++) {
-    for (int ydiff = -Radius; ydiff <= Radius; ydiff++) {
-      const Point& current = (*second_)(x+xdiff, y+ydiff);
+  for (int xdiff = -radius; xdiff <= radius; xdiff++) {
+    for (int ydiff = -radius; ydiff <= radius; ydiff++) {
+      const Point& current = (*cloud)(x+xdiff, y+ydiff);
 
       // Check if point is valid
       if (!pcl::hasValidXYZ(current))
@@ -174,7 +174,7 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
     }
   }
 
-  if (count < 4) {
+  if (count < 8) {
     return false;
   }
 
@@ -242,7 +242,7 @@ void IcpLocal::Rejecting()
     {
         Vector3f normal;
         //cout << RED << "NormalCoordinates" << selected_[i].x << ", " << selected_[i].y << WHITE << endl;
-        if(ComputeNormal(selected_[i].x,selected_[i].y,normal))
+        if(ComputeNormal(selected_[i].x,selected_[i].y,normal,Radius,second_))
         {
            selected_[i].normal = normal;         
         }else

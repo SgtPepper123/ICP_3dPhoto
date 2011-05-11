@@ -13,6 +13,7 @@ public:
   IcpCore(ros::Publisher publisher);
   
   void registerCloud(const PCloud::ConstPtr& new_point_cloud);
+  void visualizeNormals(const PCloud::ConstPtr& new_point_cloud);
   
   bool singleMerge_;
 

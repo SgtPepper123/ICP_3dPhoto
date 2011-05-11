@@ -2,6 +2,7 @@
 #include <Eigen/Dense>
 
 using namespace kinect_icp;
+using namespace Eigen;
 using namespace std;
 
 typedef union
@@ -27,6 +28,77 @@ IcpCore::IcpCore(ros::Publisher publisher)
 , lastTransformation_(Eigen::Matrix4f::Identity())
 {
   Clouds_.reserve(1000);
+}
+
+void IcpCore::visualizeNormals(const PCloud::ConstPtr& new_point_cloud) {
+  PCloud* cloud = new PCloud(*new_point_cloud);
+
+  RGBValue red;
+  //color.float_value = pt.rgb;
+  red.Red = 255;
+  red.Green = 0;
+  red.Blue = 0;
+
+  RGBValue green;
+  //color.float_value = pt.rgb;
+  green.Red = 0;
+  green.Green = 255;
+  green.Blue = 0;
+
+  RGBValue blue;
+  //color.float_value = pt.rgb;
+  blue.Red = 0;
+  blue.Green = 0;
+  blue.Blue = 255;
+
+/*  BOOST_FOREACH (pcl::PointXYZRGB& pt, cloud->points) {
+//    Eigen::Vector4f new_point(pt.x+2,pt.y+2,pt.z+2,1.0);
+
+
+//    pnt = mat * pnt;
+//pt.x = pnt[0];
+  //  pt.y = pnt[1];
+    //pt.z = pnt[2];
+    pt.rgb = blue.float_value;
+//    IcpLocal::Compute
+  }*/
+
+  int width = cloud->width;
+  int height = cloud->height;
+
+  srand(42);
+  for (int i=0; i<width; i++) {
+    int radius = 1;
+
+    // Select random point
+    int x = (rand()%(width-2*10))+10;
+    int y = (rand()%(height-2*10))+10;
+    Point& pt = (*cloud)(x,y);
+    if(pcl::hasValidXYZ(pt)){
+      pt.rgb = red.float_value;
+
+      for (int i=0; i<20; i++) {
+        Vector3f normal;
+        if (IcpLocal::ComputeNormal(x, y, normal, radius, cloud)) {
+          if(normal[1] > 0)
+            normal = -normal;
+          pcl::PointXYZRGB new_point;
+          new_point.x = pt.x+0.005*normal[0]*i;
+          new_point.y = pt.y+0.005*normal[1]*i;
+          new_point.z = pt.z+0.005*normal[2]*i;
+          new_point.rgb = green.float_value;
+          cloud->push_back(new_point);
+        }
+      }
+    }
+  }
+
+  cloud->width = cloud->points.size();
+  cloud->height = 1;
+
+  publisher_.publish(*cloud);
+
+  delete cloud;
 }
 
 void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
