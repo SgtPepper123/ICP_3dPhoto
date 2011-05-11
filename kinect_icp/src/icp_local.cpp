@@ -77,6 +77,8 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 }
 		
 const int MatchRadius =3;
+const int Radius = 1;
+
 void IcpLocal::SelectMatchReject()
 {
   ROS_INFO("IcpLocal::SelectMatchReject");
@@ -208,7 +210,7 @@ void IcpLocal::SelectMatchReject()
 
       Vector3f normal;
       //cout << RED << "NormalCoordinates" << selected_[i].x << ", " << selected_[i].y << WHITE << endl;
-      if(!ComputeNormal(bestX,bestY,normal))
+      if(!ComputeNormal(bestX,bestY,normal,Radius,second_))
       {
         continue;
       }
@@ -249,8 +251,6 @@ void IcpLocal::Selection()
     }
   }
 }
-
-const int Radius = 1;
 
 // TODO optimize
 void IcpLocal::Matching()
