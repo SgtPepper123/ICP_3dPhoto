@@ -8,7 +8,7 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
-#define SelectionAmount 1000
+#define SelectionAmount 100
 
 #define RED "\033[31m\033[1m\033[5m"
 #define GREEN "\033[32m\033[1m\033[5m"
@@ -55,10 +55,10 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
   {
     cout << "IcpIteration " << iterations << ":" << endl;
     old_error = error;
-    Selection();
-    Matching();
-    Rejecting();
-    //SelectMatchReject();
+    //Selection();
+    //Matching();
+    //Rejecting();
+    SelectMatchReject();
     error = Minimization();
     iterations++; 
     if(GetChange()<0.01)
@@ -76,7 +76,7 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 }
 		
 const int MatchRadius =3;
-const int Radius = 1;
+const int Radius = 2;
 
 void IcpLocal::SelectMatchReject()
 {
@@ -139,8 +139,8 @@ void IcpLocal::SelectMatchReject()
       Vector3f coords = P * p1;
       
       //+0.5 is there to round to nearst int and not just floor
-      int x = coords[0]/coords[2] + 0.5;
-      int y = coords[1]/coords[2] + 0.5;
+      int x = coords[0]/coords[2];
+      int y = coords[1]/coords[2];
          
       int xmax = second_->width;
       int ymax = second_->height;
@@ -154,8 +154,8 @@ void IcpLocal::SelectMatchReject()
       int bestX = x;
       int bestY = y;
       Vector4f bestPoint;
-      float bestColorDist;
-      float bestDist;
+      float bestColorDist = 0;
+      float bestDist = 0;
       
       RGBValue color;
       color.float_value = tmp.rgb;
@@ -209,7 +209,7 @@ void IcpLocal::SelectMatchReject()
 
       Vector3f normal;
       //cout << RED << "NormalCoordinates" << selected_[i].x << ", " << selected_[i].y << WHITE << endl;
-      if(!ComputeNormal(bestX,bestY,normal,Radius,second_))
+      if(!ComputeNormal(bestX,bestY,normal))
       {
         continue;
       }
@@ -311,13 +311,12 @@ void IcpLocal::Matching()
 
 }
 
-bool IcpLocal::ComputeNormalSimple(int x, int y, Vector3f& normal,
-                                   int radius, const PCloud* cloud)
+bool IcpLocal::ComputeNormalSimple(int x, int y, Vector3f& normal)
 {
-  const Point& point_1 = (*cloud)(x+radius, y);
-  const Point& point_2 = (*cloud)(x-radius, y);
-  const Point& point_3 = (*cloud)(x, y+radius);
-  const Point& point_4 = (*cloud)(x, y-radius);
+  const Point& point_1 = (*second_)(x+Radius, y);
+  const Point& point_2 = (*second_)(x-Radius, y);
+  const Point& point_3 = (*second_)(x, y+Radius);
+  const Point& point_4 = (*second_)(x, y-Radius);
 
   if (!pcl::hasValidXYZ(point_1) || !pcl::hasValidXYZ(point_2) || !pcl::hasValidXYZ(point_3) || !pcl::hasValidXYZ(point_4))
     return false;
@@ -331,18 +330,17 @@ bool IcpLocal::ComputeNormalSimple(int x, int y, Vector3f& normal,
   return true;
 }
 
-bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal,
-                             int radius, const PCloud* cloud)
+bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
 {
-  int diam = radius*2+1;
+  int diam = Radius*2+1;
   diam *= diam;
   Matrix<double, 3, Dynamic> A(3, diam);
   Vector3f average(0.0, 0.0, 0.0);
   
   int count = 0;
-  for (int xdiff = -radius; xdiff <= radius; xdiff++) {
-    for (int ydiff = -radius; ydiff <= radius; ydiff++) {
-      const Point& current = (*cloud)(x+xdiff, y+ydiff);
+  for (int xdiff = -Radius; xdiff <= Radius; xdiff++) {
+    for (int ydiff = -Radius; ydiff <= Radius; ydiff++) {
+      const Point& current = (*second_)(x+xdiff, y+ydiff);
 
       // Check if point is valid
       if (!pcl::hasValidXYZ(current))
@@ -428,7 +426,7 @@ void IcpLocal::Rejecting()
     {
         Vector3f normal;
         //cout << RED << "NormalCoordinates" << selected_[i].x << ", " << selected_[i].y << WHITE << endl;
-        if(ComputeNormal(selected_[i].x,selected_[i].y,normal,Radius,second_))
+        if(ComputeNormal(selected_[i].x,selected_[i].y,normal))
         {
            selected_[i].normal = normal;         
         }else

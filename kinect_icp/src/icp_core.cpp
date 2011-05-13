@@ -65,6 +65,8 @@ void IcpCore::visualizeNormals(const PCloud::ConstPtr& new_point_cloud) {
 
   int width = cloud->width;
   int height = cloud->height;
+  
+  IcpLocal algorithm(cloud,cloud);
 
   srand(42);
   for (int i=0; i<width; i++) {
@@ -79,7 +81,7 @@ void IcpCore::visualizeNormals(const PCloud::ConstPtr& new_point_cloud) {
 
       for (int i=0; i<20; i++) {
         Vector3f normal;
-        if (IcpLocal::ComputeNormalSimple(x, y, normal, radius, cloud)) {
+        if (algorithm.ComputeNormalSimple(x, y, normal)) {
           if(normal[1] > 0)
             normal = -normal;
           pcl::PointXYZRGB new_point;
@@ -152,7 +154,7 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
       
       algorithm_ = tmpAlgo;
       
-      algorithm_->SetMaxIterations(20);
+      algorithm_->SetMaxIterations(1000);
   }
 
   //algorithm.TestMinimizeTranslate();

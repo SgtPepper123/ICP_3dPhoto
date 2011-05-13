@@ -34,8 +34,8 @@ public:
   
   void                    SetMaxIterations(int iter){ maxIterations_ = iter; }
   
-  bool ComputeNormal(int x, int y, Eigen::Vector3f& normal, int radius, const PCloud* cloud);
-  static bool ComputeNormalSimple(int x, int y, Eigen::Vector3f& normal, int radius, const PCloud* cloud);
+  bool ComputeNormal(int x, int y, Eigen::Vector3f& normal);
+  bool ComputeNormalSimple(int x, int y, Eigen::Vector3f& normal);
 
   //Testing
   void TestMinimizeTranslate();
