@@ -8,7 +8,7 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
-#define SelectionAmount 100
+#define SelectionAmount 60
 
 #define RED "\033[31m\033[1m\033[5m"
 #define GREEN "\033[32m\033[1m\033[5m"
@@ -53,7 +53,7 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
   int validIterations = 0;
   do
   {
-    cout << "IcpIteration " << iterations << ":" << endl;
+    //cout << "IcpIteration " << iterations << ":" << endl;
     old_error = error;
     //Selection();
     //Matching();
@@ -75,12 +75,12 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
   ROS_INFO("IcpLocal::ComputeFinished");
 }
 		
-const int MatchRadius =3;
+const int MatchRadius = 2;
 const int Radius = 2;
 
 void IcpLocal::SelectMatchReject()
 {
-  ROS_INFO("IcpLocal::SelectMatchReject");
+  //ROS_INFO("IcpLocal::SelectMatchReject");
   Matrix<float, 3, 4> P;
   P <<  525.0,      0,  319.5,  0,
             0,  525.0,  239.5,  0,
@@ -441,7 +441,7 @@ void IcpLocal::Rejecting()
 
 float IcpLocal::Minimization()
 {
-  ROS_INFO("IcpLocal::Minimization");
+  //ROS_INFO("IcpLocal::Minimization");
   int N = selected_.size();
   
   Matrix<double, Dynamic, Dynamic> A(selectedCount_, 6);
@@ -449,7 +449,7 @@ float IcpLocal::Minimization()
 
   Matrix4f Transformation = Matrix4f::Identity();
   change_ = 0;
-  for(int iteration = 0; iteration < 3; ++iteration)
+  for(int iteration = 0; iteration < 1; ++iteration)
   {
 #ifdef PrintMinimizationMatrices
     cout << "iteration " << iteration << ":" << endl;
@@ -515,8 +515,10 @@ float IcpLocal::Minimization()
     change_ += TransformParams.norm(); 
   }
   
+#ifdef PrintMinimizationMatrices 
   cout << "Result: ";
   cout << change_ << endl;
+#endif    
   return change_;
 }
 

@@ -154,7 +154,7 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
       
       algorithm_ = tmpAlgo;
       
-      algorithm_->SetMaxIterations(1000);
+      algorithm_->SetMaxIterations(200);
   }
 
   //algorithm.TestMinimizeTranslate();
