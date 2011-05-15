@@ -1,0 +1,31 @@
+3d Photography - Final Report
+
+Abstract
+
+ksjdhjkhsdfk
+
+The Icp Algorithm
+The core of our implementation is the alignement of 2 pointclouds. 
+We have devided this functionality into 4 subfunctions(Selection, Matching, Rejection and Minimization), described below. 
+We didn't use any weighting of the points as this considered to not bring any advantage(fast icp paper reference) and would just add uneeded complexity.
+
+- Selection
+First we have to choose which points we want to align. This process is called selection. 
+We have choosen to sample the points randomly. 
+This has several advantages as it is fast, easy to implement and each point has potentially an influence on the algortihm.
+
+- Matching
+Initially we tried to match each selected point with it's nearest point in the target cloud. 
+This generally worked, but had several downsides: First it was slow, especilly without an accelerated search structure (e.g. kd-tree). 
+Furthermore it seems to be less stable than other matching approaches. 
+So went for a projection based. We take the selected point translate it into the coordinatesystem of the other camera an backproject it with the second camera.
+This is very fast as it is O(#selected points) int opposite to O(#selected points * points in cloud). 
+We extended this approach with a search for compatible points, so we looked int the neighbourhood of the backprojected point for the point with the best matching color information(measuring euclidian distance in RGB space).
+
+- Rejection
+To avoid too strong influence of outliers respectively wrong matches, we reject points that are to far away of each other. 
+To decide which matches are too far away we compute the average distance and base on this average distance we compu  
+
+- Minimization
+
+Optimizations
