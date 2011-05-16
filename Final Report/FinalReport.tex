@@ -1,8 +1,12 @@
 \documentclass[twocolumn]{article}
+\usepackage[pdfauthor={Remo Meyer, Jan Rüegg},%
+pdftitle={3d Photography - Final Report},%
+pdftex]{hyperref}
+
 
 \title{3d Photography - Final Report}
-\author{Your Name}
-\date{Today’s Date}
+\author{Remo Meyer \& Jan Rüegg}
+\date{\today}
 
 \begin{document}
 \maketitle
@@ -10,9 +14,7 @@
 \section{Abstract}
 Some general explanation, maybe copy from proposal
 
-
 \section{The Icp Algorithm}
-
 The core of our implementation is the alignement of 2 pointclouds. 
 We have devided this functionality into 4 subfunctions(Selection, Matching, Rejection and Minimization), described below. 
 We didn't use any weighting of the points as this considered to not bring any advantage(fast icp paper reference) and would just add uneeded complexity.
@@ -65,15 +67,42 @@ However as the solving of the system is one of the most time consuming tasks in 
 Optimizations
 We combined the Selection, matching and rejection step into one function. This allows us to have a constant number of samples, which then allows us..
 
-
+\section{Results}
 
 \section{Used libraries}
-- Eigen
+\begin{description}
+\item[Eigen 2]
+A lightweight C++ template library for vector and matrix math,
+a.k.a. linear algebra.
+
 - - Point and matrix type declarations
 - - svd solver for normal computation and minimization
-- ros 
+
+\href{http://eigen.tuxfamily.org}{http://eigen.tuxfamily.org}
+
+\item[Robot Operating System (ROS)]
+A meta-operating system for robots. It provides
+language-independent and network-transparent communication for a
+distributed robot control system.
+
 - - register to kinect data
-- pcl
+
+\href{http://ros.org}{http//ros.org}
+
+\item[Point Cloud Library (PCL)]
+A comprehensive open source library for n-D Point Clouds and 3D geometry processing.
+
 - - point cloud type definitions
+
+\href{http://pointclouds.org}{http://pointclouds.org}
+
+\item[The ROS OpenNI project]
+ROS OpenNI is an open source project focused on the integration of the PrimeSense sensors with ROS.
+
+-- kinect
+
+\href{http://www.ros.org/wiki/ni}{http://www.ros.org/wiki/ni}
+
+\end{description}
 
 \end{document}
