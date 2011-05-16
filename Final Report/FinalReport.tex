@@ -1,6 +1,8 @@
 \documentclass[twocolumn]{article}
 \usepackage[pdfauthor={Remo Meyer, Jan Rüegg},%
 pdftitle={3d Photography - Final Report},%
+colorlinks,%
+urlcolor=blue,%
 pdftex]{hyperref}
 
 
@@ -12,7 +14,7 @@ pdftex]{hyperref}
 \maketitle
 
 \section{Abstract}
-Some general explanation, maybe copy from proposal
+\textit{Some general explanation, maybe copy from proposal}
 
 \section{Classical ICP Algorithm}
 \cite{fasticp}
@@ -70,12 +72,15 @@ Optimizations
 We combined the Selection, matching and rejection step into one function. This allows us to have a constant number of samples, which then allows us..
 
 \section{Additional Steps}
+\subsection{Calibration}
 
 \subsection{Normal estimation}
 
 \subsection{Usage of Color and Normals}
 
 \section{Results}
+
+\section{Discussion}
 
 \section{Used libraries}
 \begin{description}
