@@ -1,20 +1,47 @@
-\documentclass[twocolumn]{article}
-\usepackage[pdfauthor={Remo Meyer, Jan Rüegg},%
-pdftitle={3d Photography - Final Report},%
-colorlinks,%
-urlcolor=blue,%
-pdftex]{hyperref}
+\documentclass[10pt,twocolumn,letterpaper]{article}
 
+\usepackage{iccv}
+\usepackage{times}
+\usepackage{epsfig}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
 
-\title{3d Photography - Final Report}
-\author{Remo Meyer \& Jan Rüegg}
-\date{\today}
+\usepackage[pagebackref=true,breaklinks=true,letterpaper=true,colorlinks,bookmarks=false]{hyperref}
 
+\iccvfinalcopy
+
+\def\iccvPaperID{****} % *** Enter the ICCV Paper ID here
+\def\httilde{\mbox{\tt\raisebox{-.5ex}{\symbol{126}}}}
+
+% Pages are numbered in submission mode, and unnumbered in camera-ready
+\ificcvfinal\pagestyle{empty}\fi
 \begin{document}
-\maketitle
 
-\section{Abstract}
-\textit{Some general explanation, maybe copy from proposal}
+%%%%%%%%% TITLE
+\title{3D Photography - Final Report}
+
+\author{Jan Rueegg\\
+ETH Zurich\\
+{\tt\small rggjan@gmail.com}
+% For a paper whose authors are all at the same institution,
+% omit the following lines up until the closing ``}''.
+% Additional authors and addresses can be added with ``\and'',
+% just like the second author.
+% To save space, use either the email address or home page, not both
+\and
+Remo Meyer\\
+ETH Zurich\\
+{\tt\small meyerre@student.ethz.ch}
+}
+
+\maketitle
+\thispagestyle{empty}
+
+%%%%%%%%% ABSTRACT
+\begin{abstract}
+Some general explanation, maybe copy from proposal
+\end{abstract}
 
 \section{Classical ICP Algorithm}
 \cite{fasticp}
@@ -127,6 +154,11 @@ ROS OpenNI is an open source project focused on the integration of the PrimeSens
 \href{http://www.ros.org/wiki/ni}{http://www.ros.org/wiki/ni}
 
 \end{description}
+
+{\small
+\bibliographystyle{ieee}
+\bibliography{egbib}
+}
 
 \begin{thebibliography}{99}
 \bibitem{fasticp}
