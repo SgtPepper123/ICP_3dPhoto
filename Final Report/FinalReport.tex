@@ -14,7 +14,9 @@ pdftex]{hyperref}
 \section{Abstract}
 Some general explanation, maybe copy from proposal
 
-\section{The Icp Algorithm}
+\section{Classical ICP Algorithm}
+\cite{fasticp}
+
 The core of our implementation is the alignement of 2 pointclouds. 
 We have devided this functionality into 4 subfunctions(Selection, Matching, Rejection and Minimization), described below. 
 We didn't use any weighting of the points as this considered to not bring any advantage(fast icp paper reference) and would just add uneeded complexity.
@@ -57,7 +59,7 @@ Although the rotation part of the matrix is not really linear, but as we want to
 
 (Formula)
 
-(Reference to the Paper)
+\cite{ptp}
 
 When then solve this linear system with the eigen library(some ref to eigen library).
 To compensate the error from linearizing the system, we first tried to run the minimization several times. 
@@ -66,6 +68,12 @@ However as the solving of the system is one of the most time consuming tasks in 
 
 Optimizations
 We combined the Selection, matching and rejection step into one function. This allows us to have a constant number of samples, which then allows us..
+
+\section{Additional Steps}
+
+\subsection{Normal estimation}
+
+\subsection{Usage of Color and Normals}
 
 \section{Results}
 
@@ -104,5 +112,21 @@ ROS OpenNI is an open source project focused on the integration of the PrimeSens
 \href{http://www.ros.org/wiki/ni}{http://www.ros.org/wiki/ni}
 
 \end{description}
+
+\begin{thebibliography}{99}
+\bibitem{fasticp}
+Szymon Rusinkiewicz and Marc Levoy.
+\emph{Efficient Variants of the ICP Algorithm}.
+Proceedings of the International Conference on 3-D Digital Imaging and
+Modeling (3DIM), pp. 145–152, 2001.
+
+\bibitem{ptp}
+Kok-Lim Low.
+\emph{Linear Least-Squares Optimization for
+Point-to-Plane ICP Surface Registration}.
+Technical Report TR04-004, Department of Computer Science, University of North Carolina at Chapel Hill, February 2004.
+
+\end{thebibliography}
+
 
 \end{document}
