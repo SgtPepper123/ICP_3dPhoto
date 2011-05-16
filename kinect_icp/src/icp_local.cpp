@@ -47,7 +47,12 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
 void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 {
   ROS_INFO("IcpLocal::Compute");
-  float start = clock();
+  timeval t1, t2;
+  double elapsedTime;
+
+  // start timer
+  gettimeofday(&t1, NULL);
+
   float error = std::numeric_limits<float>::max();
   float old_error;
   int iterations = 1;
@@ -73,7 +78,11 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
       }
     }
   }while(iterations < maxIterations_);
-  std::cout << "time: " << ((float)clock()-start)*1000.0/((float)CLOCKS_PER_SEC) << std::endl;
+
+  gettimeofday(&t2, NULL);
+  elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0;      // sec to ms
+  elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0;   // us to ms
+  cout << elapsedTime << " ms.\n";
   ROS_INFO("IcpLocal::ComputeFinished");
 }
 		
