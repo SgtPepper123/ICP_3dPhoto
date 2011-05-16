@@ -69,8 +69,8 @@ We decided to implement a point-to-plane error metric in the last step of the IC
 
 Since the kinect framework does not provide any normal information, we had to generate them ourselves. For that, we implemented and compared several different methods.
 
-\subsubsection{Dot Product}
-The first was to simply take the top/bottom/right/left neighbours and compute the normal with the dotproduct.
+\subsubsection{Cross Product}
+The first was to simply take the top/bottom/right/left neighbours and compute the normal with the crossproduct.
 This approach has some limitations, as if only one of the 4 neighbours is a nan(due to the limitations in the kinect) the normal can't be compute. Furthermore it is very sensitive to noise, and only one outlier can make the normal unusable.
 
 \subsubsection{Principal Components}
@@ -80,7 +80,7 @@ Compared to the previous solution this is much slower, but much more stable and 
 To be able to decide, how to make the trade-off between the number of computations and the accuracy, we made some visualizations of the computed normals.
 We varied the method and the size of the considered neighbourhood respectively the offset between the samples.
 
-\subsubsection{Extended Dot Product}
+\subsubsection{Extended Cross Product}
 
 (some images of the described tests)
 
