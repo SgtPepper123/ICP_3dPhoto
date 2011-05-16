@@ -105,8 +105,8 @@ void IcpLocal::SelectMatchReject()
     Vector3f coords = P * p1;
     
     //+0.5 is there to round to nearst int and not just floor
-    int x = coords[0]/coords[2] + 0.5;
-    int y = coords[1]/coords[2] + 0.5;
+    int x = coords[0]/coords[2];
+    int y = coords[1]/coords[2];
        
     int xmax = second_->width;
     int ymax = second_->height;
