@@ -1,0 +1,79 @@
+\documentclass[twocolumn]{article}
+
+\title{3d Photography - Final Report}
+\author{Your Name}
+\date{Today’s Date}
+
+\begin{document}
+\maketitle
+
+\section{Abstract}
+Some general explanation, maybe copy from proposal
+
+
+\section{The Icp Algorithm}
+
+The core of our implementation is the alignement of 2 pointclouds. 
+We have devided this functionality into 4 subfunctions(Selection, Matching, Rejection and Minimization), described below. 
+We didn't use any weighting of the points as this considered to not bring any advantage(fast icp paper reference) and would just add uneeded complexity.
+
+\subsection{Selection}
+First we have to choose which points we want to align. This process is called selection. 
+We have choosen to sample the points randomly. 
+This has several advantages as it is fast, easy to implement and each point has potentially an influence on the algortihm.
+
+\subsection{Matching}
+Initially we tried to match each selected point with it's nearest point in the target cloud. 
+This generally worked, but had several downsides: First it was slow, especilly without an accelerated search structure (e.g. kd-tree). 
+Furthermore it seems to be less stable than other matching approaches. 
+So went for a projection based. We take the selected point translate it into the coordinatesystem of the other camera an backproject it with the second camera.
+This is very fast as it is O(\# selected points) int opposite to O(\# selected points * points in cloud). 
+We extended this approach with a search for compatible points, so we looked int the neighbourhood of the backprojected point for the point with the best matching color information(measuring euclidian distance in RGB space).
+
+\subsection{Rejection}
+To avoid too strong influence of outliers respectively wrong matches, we reject points that are to far away of each other. 
+To decide which matches are too far away, we compute the average distance and then we discarded all matches that have a distance greater than this average times some constant factor(1.2).
+
+\subsection{Normal computation}
+As we decided to implement in the last step(minimization ref) a point to plane error metric, we need to define a plane respectively a normal at each matched point.
+As the kinect framework does not provide any normal information, we have to generate them. We tried several methods, the first was to simply take the top/bottom/right/left neighbours and compute the normal with the dotproduct.
+This approach has some limitations, as if only one of the 4 neighbours is a nan(due to the limitations in the kinect) the normal can't be compute. Furthermore it is very sensitive to noise, and only one outlier can make the normal unusable.
+So we aimed at a more stable solution which is based on the computation of the principal coponents. 
+The first 2 principal components describe the tangential direction of the plane while the 3th is the normal component.
+Compared to the previous solution this is much slower, but much more stable and an arbitrary number of neighbouring points may be chosen.
+To be able to decide, how to make the trade-off between the number of computations and the accuracy, we made some visualizations of the computed normals.
+We varied the method and the size of the considered neighbourhood respectively the offset between the samples.
+
+(some images of the described tests)
+
+Finally we aimed for the .... method with the parameters ... , because ....
+
+\subsection{Minimization}
+Now having all the matched points and their normals, we have to find a transformation matrix which minimizes the distance between those matched points.
+As the camera is always the same an does not change(recalibrate) it may only have made a translation or a rotation, resulting in a matrix with 6 degrees of freedom.
+Although the rotation part of the matrix is not really linear, but as we want to use SVD to solve this system we linearized the matrix
+
+(Formula)
+
+(Reference to the Paper)
+
+When then solve this linear system with the eigen library(some ref to eigen library).
+To compensate the error from linearizing the system, we first tried to run the minimization several times. 
+This really brings some more accuracy for a single step. 
+However as the solving of the system is one of the most time consuming tasks in this algorithm and most transformations have only a small part of rotation, it's better to make a new icp step than to make additional svd iterations.
+
+Optimizations
+We combined the Selection, matching and rejection step into one function. This allows us to have a constant number of samples, which then allows us..
+
+
+
+\section{Used libraries}
+- Eigen
+- - Point and matrix type declarations
+- - svd solver for normal computation and minimization
+- ros 
+- - register to kinect data
+- pcl
+- - point cloud type definitions
+
+\end{document}
