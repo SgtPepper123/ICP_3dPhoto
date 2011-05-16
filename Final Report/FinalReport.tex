@@ -40,21 +40,8 @@ We extended this approach with a search for compatible points, so we looked int 
 To avoid too strong influence of outliers respectively wrong matches, we reject points that are to far away of each other. 
 To decide which matches are too far away, we compute the average distance and then we discarded all matches that have a distance greater than this average times some constant factor(1.2).
 
-\subsection{Normal computation}
-As we decided to implement in the last step(minimization ref) a point to plane error metric, we need to define a plane respectively a normal at each matched point.
-As the kinect framework does not provide any normal information, we have to generate them. We tried several methods, the first was to simply take the top/bottom/right/left neighbours and compute the normal with the dotproduct.
-This approach has some limitations, as if only one of the 4 neighbours is a nan(due to the limitations in the kinect) the normal can't be compute. Furthermore it is very sensitive to noise, and only one outlier can make the normal unusable.
-So we aimed at a more stable solution which is based on the computation of the principal coponents. 
-The first 2 principal components describe the tangential direction of the plane while the 3th is the normal component.
-Compared to the previous solution this is much slower, but much more stable and an arbitrary number of neighbouring points may be chosen.
-To be able to decide, how to make the trade-off between the number of computations and the accuracy, we made some visualizations of the computed normals.
-We varied the method and the size of the considered neighbourhood respectively the offset between the samples.
-
-(some images of the described tests)
-
-Finally we aimed for the .... method with the parameters ... , because ....
-
 \subsection{Minimization}
+\label{minimization}
 Now having all the matched points and their normals, we have to find a transformation matrix which minimizes the distance between those matched points.
 As the camera is always the same an does not change(recalibrate) it may only have made a translation or a rotation, resulting in a matrix with 6 degrees of freedom.
 Although the rotation part of the matrix is not really linear, but as we want to use SVD to solve this system we linearized the matrix
@@ -72,9 +59,32 @@ Optimizations
 We combined the Selection, matching and rejection step into one function. This allows us to have a constant number of samples, which then allows us..
 
 \section{Additional Steps}
+Besides implementing the steps described in the ''Fast ICP''\cite{fasticp} paper, we needed to implement some additional steps to get the algorithm working.
+
 \subsection{Calibration}
 
 \subsection{Normal estimation}
+
+We decided to implement a point-to-plane error metric in the last step of the ICP Algorithm (section \ref{minimization}). To use that, we needed to define a plane respectively a normal at each of the matched points.
+
+Since the kinect framework does not provide any normal information, we had to generate them ourselves. For that, we implemented and compared several different methods.
+
+\subsubsection{Dot Product}
+The first was to simply take the top/bottom/right/left neighbours and compute the normal with the dotproduct.
+This approach has some limitations, as if only one of the 4 neighbours is a nan(due to the limitations in the kinect) the normal can't be compute. Furthermore it is very sensitive to noise, and only one outlier can make the normal unusable.
+
+\subsubsection{Principal Components}
+So we aimed at a more stable solution which is based on the computation of the principal coponents. 
+The first 2 principal components describe the tangential direction of the plane while the 3th is the normal component.
+Compared to the previous solution this is much slower, but much more stable and an arbitrary number of neighbouring points may be chosen.
+To be able to decide, how to make the trade-off between the number of computations and the accuracy, we made some visualizations of the computed normals.
+We varied the method and the size of the considered neighbourhood respectively the offset between the samples.
+
+\subsubsection{Extended Dot Product}
+
+(some images of the described tests)
+
+Finally we aimed for the .... method with the parameters ... , because ....
 
 \subsection{Usage of Color and Normals}
 
