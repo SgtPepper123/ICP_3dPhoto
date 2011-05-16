@@ -11,10 +11,10 @@ class IcpCore
 {
 public:
   IcpCore(ros::Publisher publisher);
-  
+
   void registerCloud(const PCloud::ConstPtr& new_point_cloud);
   void visualizeNormals(const PCloud::ConstPtr& new_point_cloud);
-  
+
   bool singleMerge_;
 
 private:
@@ -27,7 +27,7 @@ private:
   PCloud* outCloud_;
   PCloud* cloud1_;
   PCloud* cloud2_;
-  
+
   IcpLocal* algorithm_;
 
   Eigen::Matrix4f lastTransformation_;
