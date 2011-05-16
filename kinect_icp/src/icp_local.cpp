@@ -8,7 +8,7 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
-#define SelectionAmount 60
+#define SelectionAmount 300
 
 #define RED "\033[31m\033[1m\033[5m"
 #define GREEN "\033[32m\033[1m\033[5m"
@@ -89,8 +89,8 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
   ROS_INFO("IcpLocal::ComputeFinished");
 }
 
-const int MatchRadius = 2;
-const int Radius = 2;
+const int MatchRadius = 1;
+const int Radius = 5;
 
 void IcpLocal::SelectMatchReject()
 {
