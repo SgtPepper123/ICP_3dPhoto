@@ -394,10 +394,10 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
     A(2, i) = A(2, i) - average(2);
   }
 
-  A.resize(3, count);
+  A.conservativeResize(3, count);
 
   Matrix<double, 3, 3 > cov = A * A.transpose();
-  EigenSolver< Matrix<double, 3, 3 > > es(cov);
+  SelfAdjointEigenSolver< Matrix<double, 3, 3 > > es(cov);
 
   float ev0 = abs(es.eigenvalues()[0]);
   float ev1 = abs(es.eigenvalues()[1]);
@@ -411,9 +411,9 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
   //  else
   //    normal = es.eigenvectors().col(2);
 
-  normal(0) = real(es.eigenvectors()(0, i));
-  normal(1) = real(es.eigenvectors()(1, i));
-  normal(2) = real(es.eigenvectors()(2, i));
+  normal(0) = es.eigenvectors()(0, i);
+  normal(1) = es.eigenvectors()(1, i);
+  normal(2) = es.eigenvectors()(2, i);
 
   if (normal.norm() > 1.1 || normal.norm() < 0.9 || normal.norm() != normal.norm())
   {
