@@ -26,6 +26,8 @@ IcpCore::IcpCore(ros::Publisher publisher)
   , cloud1_(NULL)
   , cloud2_(NULL)
   , algorithm_(NULL)
+  , totalTime_(0)
+  , numComputes_(0)
   , lastTransformation_(Eigen::Matrix4f::Identity())
 {
   Clouds_.reserve(1000);
@@ -59,10 +61,9 @@ void IcpCore::visualizeNormals(const PCloud::ConstPtr& new_point_cloud)
   IcpLocal algorithm(cloud, cloud);
 
   srand(42);
+
   for (int i = 0; i < width; i++)
   {
-    int radius = 4;
-
     // Select random point
     int x = (rand() % (width - 2 * 10)) + 10;
     int y = (rand() % (height - 2 * 10)) + 10;
@@ -130,6 +131,7 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     {
       cloud1_ = new PCloud(*new_point_cloud);
       outCloud_ = new PCloud(*new_point_cloud);
+      publisher_.publish(new_point_cloud);
       return;
     }
 
@@ -141,23 +143,35 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 
     cloud2_ = cloud1_;
     cloud1_ = new PCloud(*new_point_cloud);
-
-    IcpLocal* tmpAlgo = new IcpLocal(cloud1_, cloud2_);
-
-    if (algorithm_)
-    {
-      //tmpAlgo->SetTransformation(algorithm_->GetTransformation());
-      delete algorithm_;
-    }
-
-    algorithm_ = tmpAlgo;
-
-    algorithm_->SetMaxIterations(200);
+    outCloud_ = new PCloud(*new_point_cloud);
+    return;
   }
 
-  //algorithm.TestMinimizeTranslate();
+  if (cloud2_)
+  {
+    delete cloud2_;
+    cloud2_ = NULL;
+  }
 
-  algorithm_->Compute();
+  cloud2_ = cloud1_;
+  cloud1_ = new PCloud(*new_point_cloud);
+
+  IcpLocal* tmpAlgo = new IcpLocal(cloud1_, cloud2_);
+
+  if (algorithm_)
+  {
+    //tmpAlgo->SetTransformation(algorithm_->GetTransformation());
+    delete algorithm_;
+  }
+
+  algorithm_ = tmpAlgo;
+
+  algorithm_->SetMaxIterations(200);
+
+  //algorithm.TestMinimizeTranslate();
+  numComputes_++;
+  totalTime_ += algorithm_->Compute();
+  cout << "Average: " << totalTime_ / numComputes_ << " ms (" << totalTime_ << "/" << numComputes_ << ")" << endl;
 
   if (singleMerge_)
   {
@@ -188,9 +202,7 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     }
 
     *outCloud_ += *cloud2_;
-
-    algorithm_->SetMaxIterations(3);
-
+    algorithm_->SetMaxIterations(1);
   }
   else
   {
