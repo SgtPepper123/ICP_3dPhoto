@@ -16,6 +16,7 @@ public:
   void visualizeNormals(const PCloud::ConstPtr& new_point_cloud);
 
   bool singleMerge_;
+  bool accumulateResults_;
 
 private:
 

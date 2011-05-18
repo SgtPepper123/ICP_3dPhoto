@@ -20,7 +20,8 @@ typedef union
 } RGBValue;
 
 IcpCore::IcpCore(ros::Publisher publisher)
-  : singleMerge_(true)
+  : singleMerge_(false)
+  , accumulateResults_(true)
   , publisher_(publisher)
   , outCloud_(NULL)
   , cloud1_(NULL)
@@ -142,31 +143,25 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     }
 
     cloud2_ = cloud1_;
-    cloud1_ = new PCloud(*new_point_cloud);
-    outCloud_ = new PCloud(*new_point_cloud);
-    return;
+      cloud1_ = new PCloud(*new_point_cloud);
+    if(!accumulateResults_)
+    {
+      delete outCloud_;
+      outCloud_ = new PCloud(*cloud2_);
+    }
+    IcpLocal* tmpAlgo = new IcpLocal(cloud1_, cloud2_);
+
+    if (algorithm_)
+    {
+      //tmpAlgo->SetTransformation(algorithm_->GetTransformation());
+      delete algorithm_;
+    }
+
+    algorithm_ = tmpAlgo;
+
+    algorithm_->SetMaxIterations(200);
+
   }
-
-  if (cloud2_)
-  {
-    delete cloud2_;
-    cloud2_ = NULL;
-  }
-
-  cloud2_ = cloud1_;
-  cloud1_ = new PCloud(*new_point_cloud);
-
-  IcpLocal* tmpAlgo = new IcpLocal(cloud1_, cloud2_);
-
-  if (algorithm_)
-  {
-    //tmpAlgo->SetTransformation(algorithm_->GetTransformation());
-    delete algorithm_;
-  }
-
-  algorithm_ = tmpAlgo;
-
-  algorithm_->SetMaxIterations(200);
 
   //algorithm.TestMinimizeTranslate();
   numComputes_++;
@@ -207,7 +202,14 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
   else
   {
     PCloud cloud(*cloud1_);
-    lastTransformation_ *= algorithm_->GetTransformation();
+    if(accumulateResults_)
+    {
+      lastTransformation_ *= algorithm_->GetTransformation();
+    }
+    else
+    {
+      lastTransformation_ = algorithm_->GetTransformation();
+    }
 
     BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud.points)
     {
