@@ -30,6 +30,9 @@ private:
 
   IcpLocal* algorithm_;
 
+  double totalTime_;
+  int numComputes_;
+
   Eigen::Matrix4f lastTransformation_;
 };
 
