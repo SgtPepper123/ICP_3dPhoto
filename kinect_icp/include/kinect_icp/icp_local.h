@@ -48,6 +48,11 @@ public:
   {
     maxIterations_ = iter;
   }
+  
+  void SetSelectionAmount(int amount)
+  {
+    selectionAmount_ = amount;
+  }
 
   bool ComputeNormal(int x, int y, Eigen::Vector3f& normal);
   bool ComputeNormalSimple(int x, int y, Eigen::Vector3f& normal);
@@ -73,6 +78,8 @@ private:
   void Matching();
   void Rejecting();
   float Minimization();
+  
+  int selectionAmount_;
 
 };
 
