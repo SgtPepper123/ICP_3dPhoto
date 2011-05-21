@@ -29,6 +29,8 @@ rosbuild_add_boost_directories()
 rosbuild_add_executable(point_cloud_collector 	src/point_cloud_collector.cpp
 												src/icp_core.cpp
 												src/icp_local.cpp)
+rosbuild_add_executable(point_cloud_fusor 	src/point_cloud_fusor.cpp
+												src/vrip.cpp)
 # This is only required for the script to work in the version control
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
 
@@ -42,5 +44,5 @@ else( OPENCL_HAS_CPP_BINDINGS )
 	message( "No OpenCL CPP bindings found" )
 endif( OPENCL_HAS_CPP_BINDINGS )
 
-target_link_libraries( point_cloud_collector ${OPENCL_LIBRARIES} )
+target_link_libraries( point_cloud_fusor ${OPENCL_LIBRARIES} )
 #target_link_libraries(example ${PROJECT_NAME})
