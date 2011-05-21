@@ -20,7 +20,8 @@ public:
 
 private:
 
-  void oneDiffStep(const PCloud::ConstPtr& new_point_cloud);
+  void oneIcpStep(const PCloud::ConstPtr& new_point_cloud);
+  void publishDiffToStart();
 
   //Members
   std::vector<PCloud::ConstPtr> Clouds_;
@@ -40,6 +41,8 @@ private:
   float red_;
   float green_;
   float blue_;
+
+  int frameNum_;
 
   Eigen::Matrix4f lastTransformation_;
 };
