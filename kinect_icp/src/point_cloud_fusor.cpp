@@ -17,11 +17,11 @@ int main(int argc, char **argv)
   //ros::Publisher merged_pub = n.advertise< kinect_icp::PCloud const >("merged_clouds", 10);
 
   //entrypoint of the Icp Algorithm
-  kinect_icp::Vrip vrip();
+  kinect_icp::Vrip vrip;
 
   //create function pointer to registerCloud function in IcpCore
   //then subscribe it with the rosout node, so all published pointclouds will be directed to the algorithm.
-  boost::function< void(const boost::shared_ptr< kinect_icp::PCloud const > &) > func = boost::bind(&kinect_icp::Vrip::fuseCloud, boost::ref(core), _1);
+  boost::function< void(const boost::shared_ptr< kinect_icp::PCloud const > &) > func = boost::bind(&kinect_icp::Vrip::fuseCloud, boost::ref(vrip), _1);
   ros::Subscriber sub = n.subscribe("/camera/rgb/points", 1, func);
 
   //wait for messages till canceled
