@@ -34,6 +34,10 @@ private:
   double totalTime_;
   int numComputes_;
 
+  float red_;
+  float green_;
+  float blue_;
+
   Eigen::Matrix4f lastTransformation_;
 };
 

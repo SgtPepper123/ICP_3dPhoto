@@ -32,6 +32,28 @@ IcpCore::IcpCore(ros::Publisher publisher)
   , lastTransformation_(Eigen::Matrix4f::Identity())
 {
   Clouds_.reserve(1000);
+
+
+  RGBValue green;
+  green.Red = 0;
+  green.Green = 255;
+  green.Blue = 0;
+
+  green_ = green.float_value;
+
+  RGBValue red;
+  red.Red = 255;
+  red.Green = 0;
+  red.Blue = 0;
+
+  red_ = red.float_value;
+
+  RGBValue blue;
+  blue.Red = 0;
+  blue.Green = 0;
+  blue.Blue = 255;
+
+  blue_ = blue.float_value;
 }
 
 void IcpCore::visualizeNormals(const PCloud::ConstPtr& new_point_cloud)
@@ -103,40 +125,27 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 {
   ROS_DEBUG("Received Point Cloud");
 
-  RGBValue green;
-  green.Red = 0;
-  green.Green = 255;
-  green.Blue = 0;
-
-  RGBValue red;
-  red.Red = 255;
-  red.Green = 0;
-  red.Blue = 0;
-  
-  RGBValue blue;
-  blue.Red = 0;
-  blue.Green = 0;
-  blue.Blue = 255;
-
   static int i = 0;
-  i++;
   static PCloud* firstCloud = NULL;
 
-  if (i < 49)
+  const int max_frame = 13;
+
+  if (!cloud1_)
   {
+    cloud1_ = new PCloud(*new_point_cloud);
+    firstCloud = new PCloud(*new_point_cloud);
 
-    if (!cloud1_)
+    BOOST_FOREACH(pcl::PointXYZRGB& pt, firstCloud->points)
     {
-      cloud1_ = new PCloud(*new_point_cloud);
-      firstCloud = new PCloud(*new_point_cloud);
-
-      BOOST_FOREACH(pcl::PointXYZRGB& pt, firstCloud->points)
-      {
-        pt.rgb = green.float_value;
-      }
-
-      return;
+      pt.rgb = green_;
     }
+
+    return;
+  }
+
+  if (i != max_frame)
+  {
+    i++;
 
     if (cloud2_)
     {
@@ -145,12 +154,11 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     }
 
     cloud2_ = cloud1_;
-      cloud1_ = new PCloud(*new_point_cloud);
-    if(!accumulateResults_)
-    {
-      delete outCloud_;
-      outCloud_ = new PCloud(*cloud2_);
-    }
+    cloud1_ = new PCloud(*new_point_cloud);
+
+    delete outCloud_;
+    outCloud_ = new PCloud(*cloud2_);
+
     IcpLocal* tmpAlgo = new IcpLocal(cloud1_, cloud2_);
 
     if (algorithm_)
@@ -167,61 +175,91 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     lastTransformation_ *= algorithm_->GetTransformation();
     cout << i << endl;
     cout << lastTransformation_ << endl;
-  }
-  else
-  {
+
+    delete outCloud_;
+    outCloud_ = new PCloud(*firstCloud);
+
     PCloud cloud(*cloud1_);
 
     BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud.points)
     {
       Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
+      /*if(pnt.norm()>4)
+      {
+        pt.rgb = blue.float_value;
+      }
+      else
+      {*/
+      pt.rgb = red_;
+      //}
       pnt = lastTransformation_ * pnt;
       pt.x = pnt[0];
       pt.y = pnt[1];
       pt.z = pnt[2];
-      pt.rgb = red.float_value;
     }
 
-    IcpLocal* tmpAlgo = new IcpLocal(&cloud, firstCloud);
-
-    tmpAlgo->SetMaxIterations(200);
-    tmpAlgo->SetSelectionAmount(1000);
-    tmpAlgo->Compute();
-
-    cout << "Done" << endl;
-    cout << i << endl;
-    cout << tmpAlgo->GetTransformation() << endl;
-
-    lastTransformation_ *= tmpAlgo->GetTransformation();
-
-    cout << "All" << endl;
-    cout << lastTransformation_ << endl;
-
-    delete tmpAlgo;
+    *outCloud_ += cloud;
+    publisher_.publish(*outCloud_);
   }
 
-  delete outCloud_;
-  outCloud_ = new PCloud(*firstCloud);
-
-  PCloud cloud(*cloud1_);
-
-  BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud.points)
+  if (i % 10 == 0 || i == max_frame)
   {
-    Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
-    if(pnt.norm()>4)
+    for (int j = 0; j < 5; j++)
     {
-      pt.rgb = blue.float_value;    
-    }
-    else
-    {
-      pt.rgb = red.float_value;
-    }
-    pnt = lastTransformation_ * pnt;
-    pt.x = pnt[0];
-    pt.y = pnt[1];
-    pt.z = pnt[2];
-  }
+      PCloud cloud(*cloud1_);
 
-  *outCloud_ += cloud;
-  publisher_.publish(*outCloud_);
+      BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud.points)
+      {
+        Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
+        pnt = lastTransformation_ * pnt;
+        pt.x = pnt[0];
+        pt.y = pnt[1];
+        pt.z = pnt[2];
+        pt.rgb = red_;
+      }
+
+      IcpLocal* tmpAlgo = new IcpLocal(&cloud, firstCloud);
+
+      tmpAlgo->SetMaxIterations(200);
+      tmpAlgo->SetSelectionAmount(1000);
+      tmpAlgo->Compute();
+
+      cout << "Done" << endl;
+      cout << i << endl;
+      cout << tmpAlgo->GetTransformation() << endl;
+
+      lastTransformation_ *= tmpAlgo->GetTransformation();
+
+      cout << "All" << endl;
+      cout << lastTransformation_ << endl;
+
+      delete tmpAlgo;
+
+      delete outCloud_;
+      outCloud_ = new PCloud(*firstCloud);
+
+      PCloud cloud_new(*cloud1_);
+
+      BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud_new.points)
+      {
+        Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
+        /*if(pnt.norm()>4)
+        {
+          pt.rgb = blue.float_value;
+        }
+        else
+        {*/
+        pt.rgb = red_;
+        //}
+        pnt = lastTransformation_ * pnt;
+        pt.x = pnt[0];
+        pt.y = pnt[1];
+        pt.z = pnt[2];
+      }
+
+      *outCloud_ += cloud_new;
+      publisher_.publish(*outCloud_);
+    }
+
+  }
 }
