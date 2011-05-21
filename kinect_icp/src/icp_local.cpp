@@ -46,7 +46,7 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
 
 double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 {
-  ROS_INFO("IcpLocal::Compute");
+  //ROS_INFO("IcpLocal::Compute");
   timeval t1, t2;
   double elapsedTime;
 
@@ -84,8 +84,8 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
   gettimeofday(&t2, NULL);
   elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0; // sec to ms
   elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0; // us to ms
-  cout << elapsedTime << " ms.\n";
-  ROS_INFO("IcpLocal::ComputeFinished");
+  //cout << elapsedTime << " ms.\n";
+  //ROS_INFO("IcpLocal::ComputeFinished");
 
   return elapsedTime;
 }

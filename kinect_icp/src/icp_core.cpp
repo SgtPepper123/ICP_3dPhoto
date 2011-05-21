@@ -121,32 +121,7 @@ void IcpCore::visualizeNormals(const PCloud::ConstPtr& new_point_cloud)
   delete cloud;
 }
 
-void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
-{
-  ROS_DEBUG("Received Point Cloud");
-
-  static int i = 0;
-  static PCloud* firstCloud = NULL;
-
-  const int max_frame = 13;
-
-  if (!cloud1_)
-  {
-    cloud1_ = new PCloud(*new_point_cloud);
-    firstCloud = new PCloud(*new_point_cloud);
-
-    BOOST_FOREACH(pcl::PointXYZRGB& pt, firstCloud->points)
-    {
-      pt.rgb = green_;
-    }
-
-    return;
-  }
-
-  if (i != max_frame)
-  {
-    i++;
-
+void IcpCore::oneDiffStep(const PCloud::ConstPtr& new_point_cloud) {
     if (cloud2_)
     {
       delete cloud2_;
@@ -156,42 +131,28 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     cloud2_ = cloud1_;
     cloud1_ = new PCloud(*new_point_cloud);
 
-    delete outCloud_;
-    outCloud_ = new PCloud(*cloud2_);
-
-    IcpLocal* tmpAlgo = new IcpLocal(cloud1_, cloud2_);
-
     if (algorithm_)
     {
-      //tmpAlgo->SetTransformation(algorithm_->GetTransformation());
       delete algorithm_;
     }
 
-    algorithm_ = tmpAlgo;
-
+    algorithm_ = new IcpLocal(cloud1_, cloud2_);
     algorithm_->SetMaxIterations(200);
     algorithm_->Compute();
 
     lastTransformation_ *= algorithm_->GetTransformation();
-    cout << i << endl;
-    cout << lastTransformation_ << endl;
 
     delete outCloud_;
-    outCloud_ = new PCloud(*firstCloud);
+    outCloud_ = new PCloud(*firstCloud_);
 
     PCloud cloud(*cloud1_);
 
     BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud.points)
     {
       Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
-      /*if(pnt.norm()>4)
-      {
-        pt.rgb = blue.float_value;
-      }
-      else
-      {*/
+
       pt.rgb = red_;
-      //}
+
       pnt = lastTransformation_ * pnt;
       pt.x = pnt[0];
       pt.y = pnt[1];
@@ -200,6 +161,37 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 
     *outCloud_ += cloud;
     publisher_.publish(*outCloud_);
+}
+
+void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
+{
+  ROS_DEBUG("Received Point Cloud");
+
+  static int i = 0;
+
+  const int max_frame = 13;
+
+  // First step
+  if (!cloud1_)
+  {
+    cloud1_ = new PCloud(*new_point_cloud);
+    firstCloud_ = new PCloud(*new_point_cloud);
+
+    BOOST_FOREACH(pcl::PointXYZRGB& pt, firstCloud_->points)
+    {
+      pt.rgb = green_;
+    }
+
+    return;
+  }
+
+  // Single mode
+  if (i != max_frame)
+  {
+    i++;
+    cout << i << endl;
+
+    oneDiffStep(new_point_cloud);
   }
 
   if (i % 10 == 0 || i == max_frame)
@@ -218,7 +210,7 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
         pt.rgb = red_;
       }
 
-      IcpLocal* tmpAlgo = new IcpLocal(&cloud, firstCloud);
+      IcpLocal* tmpAlgo = new IcpLocal(&cloud, firstCloud_);
 
       tmpAlgo->SetMaxIterations(200);
       tmpAlgo->SetSelectionAmount(1000);
@@ -236,7 +228,7 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
       delete tmpAlgo;
 
       delete outCloud_;
-      outCloud_ = new PCloud(*firstCloud);
+      outCloud_ = new PCloud(*firstCloud_);
 
       PCloud cloud_new(*cloud1_);
 

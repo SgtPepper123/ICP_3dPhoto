@@ -20,6 +20,8 @@ public:
 
 private:
 
+  void oneDiffStep(const PCloud::ConstPtr& new_point_cloud);
+
   //Members
   std::vector<PCloud::ConstPtr> Clouds_;
 
@@ -28,6 +30,7 @@ private:
   PCloud* outCloud_;
   PCloud* cloud1_;
   PCloud* cloud2_;
+  PCloud* firstCloud_;
 
   IcpLocal* algorithm_;
 
