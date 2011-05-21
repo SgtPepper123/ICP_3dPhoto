@@ -16,6 +16,7 @@ public:
   void visualizeNormals(const PCloud::ConstPtr& new_point_cloud);
 
   bool singleMerge_;
+  bool accumulateResults_;
 
 private:
 
@@ -29,6 +30,9 @@ private:
   PCloud* cloud2_;
 
   IcpLocal* algorithm_;
+
+  double totalTime_;
+  int numComputes_;
 
   Eigen::Matrix4f lastTransformation_;
 };

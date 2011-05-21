@@ -27,7 +27,7 @@ class IcpLocal
 {
 public:
   IcpLocal(PCloud* first, PCloud* second, int iterations = 1);
-  void Compute();
+  double Compute();
 
   void SetTransformation(const Eigen::Matrix4f& mat)
   {

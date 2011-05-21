@@ -44,7 +44,7 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
 
 #define MinValidIterations 3
 
-void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
+double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 {
   ROS_INFO("IcpLocal::Compute");
   timeval t1, t2;
@@ -86,8 +86,9 @@ void IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
   elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0; // us to ms
   cout << elapsedTime << " ms.\n";
   ROS_INFO("IcpLocal::ComputeFinished");
-}
 
+  return elapsedTime;
+}
 const int MatchRadius = 1;
 const int Radius = 5;
 
@@ -537,6 +538,7 @@ float IcpLocal::Minimization()
     //cout << tmpMat.eulerAngles(0,1,2) << endl;
     cout << transformation_ << WHITE << endl;
 #endif
+    //    cout << transformation_(0,3)*10000 << "," << transformation_(1,3)*10000 << "," << transformation_(2,3)*10000 << endl;
     change_ += TransformParams.norm();
   }
 

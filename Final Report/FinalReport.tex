@@ -82,8 +82,9 @@ To compensate the error from linearizing the system, we first tried to run the m
 This really brings some more accuracy for a single step. 
 However as the solving of the system is one of the most time consuming tasks in this algorithm and most transformations have only a small part of rotation, it's better to make a new icp step than to make additional svd iterations.
 
-Optimizations
-We combined the Selection, matching and rejection step into one function. This allows us to have a constant number of samples, which then allows us..
+\subsection{Optimizations}
+We combined the Selection, matching and rejection step into one function. This allows us to have a constant number of samples, which then gives us more freedom in setting the number of samples.
+As it can't occure anymore, that from time to time 80\% or more the samples are discarded. So testing showed, that fewer samples(around 50) reduce the computation time alot, while keeping the accuracy at a reasonable level.
 
 \section{Additional Steps}
 Besides implementing the steps described in the ''Fast ICP''\cite{fasticp} paper, we needed to implement some additional steps to get the algorithm working.

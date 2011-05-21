@@ -20,12 +20,15 @@ typedef union
 } RGBValue;
 
 IcpCore::IcpCore(ros::Publisher publisher)
-  : singleMerge_(true)
+  : singleMerge_(false)
+  , accumulateResults_(true)
   , publisher_(publisher)
   , outCloud_(NULL)
   , cloud1_(NULL)
   , cloud2_(NULL)
   , algorithm_(NULL)
+  , totalTime_(0)
+  , numComputes_(0)
   , lastTransformation_(Eigen::Matrix4f::Identity())
 {
   Clouds_.reserve(1000);
@@ -59,10 +62,9 @@ void IcpCore::visualizeNormals(const PCloud::ConstPtr& new_point_cloud)
   IcpLocal algorithm(cloud, cloud);
 
   srand(42);
+
   for (int i = 0; i < width; i++)
   {
-    int radius = 4;
-
     // Select random point
     int x = (rand() % (width - 2 * 10)) + 10;
     int y = (rand() % (height - 2 * 10)) + 10;
@@ -143,8 +145,12 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     }
 
     cloud2_ = cloud1_;
-    cloud1_ = new PCloud(*new_point_cloud);
-
+      cloud1_ = new PCloud(*new_point_cloud);
+    if(!accumulateResults_)
+    {
+      delete outCloud_;
+      outCloud_ = new PCloud(*cloud2_);
+    }
     IcpLocal* tmpAlgo = new IcpLocal(cloud1_, cloud2_);
 
     if (algorithm_)
@@ -161,7 +167,6 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     lastTransformation_ *= algorithm_->GetTransformation();
     cout << i << endl;
     cout << lastTransformation_ << endl;
-
   }
   else
   {
@@ -194,7 +199,6 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 
     delete tmpAlgo;
   }
-
 
   delete outCloud_;
   outCloud_ = new PCloud(*firstCloud);
