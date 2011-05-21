@@ -138,9 +138,14 @@ void IcpCore::oneIcpStep(const PCloud::ConstPtr& new_point_cloud)
     delete algorithm_;
   }
 
-  algorithm_ = new IcpLocal(cloud1_, cloud2_);
-  algorithm_->SetMaxIterations(200);
+  compute(cloud1_, cloud2_, 200, 60);
+}
+
+void IcpCore::compute(PCloud* cloud1, PCloud* cloud2, int max_iterations, int selection_amount) {
+  algorithm_ = new IcpLocal(cloud1, cloud2);
+  algorithm_->SetMaxIterations(max_iterations);
   algorithm_->Compute();
+  algorithm_->SetSelectionAmount(selection_amount);
 
   lastTransformation_ *= algorithm_->GetTransformation();
 }
@@ -149,23 +154,27 @@ void IcpCore::publishDiffToStart()
 {
 
   PCloud out(*firstCloud_);
-
   PCloud cloud(*cloud1_);
-
-  BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud.points)
-  {
-    Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
-
-    pt.rgb = red_;
-
-    pnt = lastTransformation_ * pnt;
-    pt.x = pnt[0];
-    pt.y = pnt[1];
-    pt.z = pnt[2];
-  }
+  transformCloud(&cloud, red_);
 
   out += cloud;
   publisher_.publish(out);
+}
+
+void IcpCore::transformCloud(PCloud* cloud, float color, bool transformCoordinates) {
+  BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud->points)
+  {
+    Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
+
+    pt.rgb = color;
+
+    if (transformCoordinates) {
+      pnt = lastTransformation_ * pnt;
+      pt.x = pnt[0];
+      pt.y = pnt[1];
+      pt.z = pnt[2];
+    }
+  }
 }
 
 void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
@@ -182,16 +191,13 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     cloud1_ = new PCloud(*new_point_cloud);
     firstCloud_ = new PCloud(*new_point_cloud);
 
-    BOOST_FOREACH(pcl::PointXYZRGB& pt, firstCloud_->points)
-    {
-      pt.rgb = green_;
-    }
+    transformCloud(firstCloud_, green_);
 
     return;
   }
 
-  // Single mode
-  if (frameNum_ != max_frame)
+  // Incremental mode
+  if (frameNum_ < max_frame)
   {
     frameNum_++;
     cout << "Frame: " << frameNum_ << endl;
@@ -200,64 +206,19 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     publishDiffToStart();
   }
 
+  // Refinement mode
   if (frameNum_ % precision_diff == 0 || frameNum_ == max_frame)
   {
     for (int j = 0; j < precision_steps; j++)
     {
       PCloud cloud(*cloud1_);
 
-      BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud.points)
-      {
-        Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
-        pnt = lastTransformation_ * pnt;
-        pt.x = pnt[0];
-        pt.y = pnt[1];
-        pt.z = pnt[2];
-        pt.rgb = red_;
-      }
+      transformCloud(&cloud, red_);
+      compute(&cloud, firstCloud_, 200, 1000);
 
-      IcpLocal* tmpAlgo = new IcpLocal(&cloud, firstCloud_);
+      cout << "Refinement: " << j << endl;
 
-      tmpAlgo->SetMaxIterations(200);
-      tmpAlgo->SetSelectionAmount(1000);
-      tmpAlgo->Compute();
-
-      cout << "Done" << endl;
-      cout << frameNum_ << endl;
-      cout << tmpAlgo->GetTransformation() << endl;
-
-      lastTransformation_ *= tmpAlgo->GetTransformation();
-
-      cout << "All" << endl;
-      cout << lastTransformation_ << endl;
-
-      delete tmpAlgo;
-
-      delete outCloud_;
-      outCloud_ = new PCloud(*firstCloud_);
-
-      PCloud cloud_new(*cloud1_);
-
-      BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud_new.points)
-      {
-        Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
-        /*if(pnt.norm()>4)
-        {
-          pt.rgb = blue.float_value;
-        }
-        else
-        {*/
-        pt.rgb = red_;
-        //}
-        pnt = lastTransformation_ * pnt;
-        pt.x = pnt[0];
-        pt.y = pnt[1];
-        pt.z = pnt[2];
-      }
-
-      *outCloud_ += cloud_new;
-      publisher_.publish(*outCloud_);
+      publishDiffToStart();
     }
-
   }
 }
