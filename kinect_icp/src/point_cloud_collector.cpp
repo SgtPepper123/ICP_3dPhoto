@@ -2,7 +2,6 @@
 #include "kinect_icp/icp_core.h"
 #include <boost/bind.hpp>
 
-#define MAX_SOURCE_SIZE (0x100000)
 int main(int argc, char **argv)
 {
   //intialize some ros stuff
