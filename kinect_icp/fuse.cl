@@ -301,7 +301,7 @@ vertex interpolate(vertex p1, vertex p2, float valp1, float valp2)
         return p1;
 
     vertex p;
-    float diff = 0.5f;//(float)(0.f - valp1) / (valp2 - valp1);
+    float diff = (float)valp1 / (valp1 - valp2);
     p.x = p1.x + diff * (p2.x - p1.x);
     p.y = p1.y + diff * (p2.y - p1.y);
     p.z = p1.z + diff * (p2.z - p1.z);
