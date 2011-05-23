@@ -8,8 +8,6 @@ using namespace Eigen;
 using namespace kinect_icp;
 using namespace std;
 
-#define SelectionAmount 60
-
 #define RED "\033[31m\033[1m\033[5m"
 #define GREEN "\033[32m\033[1m\033[5m"
 #define YELLOW "\033[33m\033[1m\033[5m"
@@ -38,6 +36,7 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
   , maxIterations_(iterations)
   , selectedCount_(0)
   , transformation_(Matrix4f::Identity())
+  , selectionAmount_(60)
 {
   //srand(time(NULL));
   srand(42);
@@ -47,7 +46,7 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
 
 double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 {
-  ROS_INFO("IcpLocal::Compute");
+  //ROS_INFO("IcpLocal::Compute");
   timeval t1, t2;
   double elapsedTime;
 
@@ -85,14 +84,13 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
   gettimeofday(&t2, NULL);
   elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0; // sec to ms
   elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0; // us to ms
-  cout << elapsedTime << " ms.\n";
-  ROS_INFO("IcpLocal::ComputeFinished");
+  //cout << elapsedTime << " ms.\n";
+  //ROS_INFO("IcpLocal::ComputeFinished");
 
   return elapsedTime;
 }
 const int MatchRadius = 1;
-
-const int Radius = 2;
+const int Radius = 5;
 
 void IcpLocal::SelectMatchReject()
 {
@@ -105,7 +103,7 @@ void IcpLocal::SelectMatchReject()
   int width = first_->width;
   int height = first_->height;
   selected_.clear();
-  selected_.reserve(SelectionAmount);
+  selected_.reserve(selectionAmount_);
 
   float sum = 0.f;
   //average guessing
@@ -141,7 +139,7 @@ void IcpLocal::SelectMatchReject()
     ++i;
   }
 
-  for (int i = 0; i < SelectionAmount;)
+  for (int i = 0; i < selectionAmount_;)
   {
     MatchedPoint mp;
     int x1 = rand() % width;
@@ -255,9 +253,9 @@ void IcpLocal::Selection()
   int width = first_->width;
   int height = first_->height;
   selected_.clear();
-  selected_.reserve(SelectionAmount);
+  selected_.reserve(selectionAmount_);
   MatchedPoint mp;
-  while (i < SelectionAmount)
+  while (i < selectionAmount_)
   {
     int x = rand() % width;
     int y = rand() % height;
@@ -382,7 +380,7 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
     }
   }
 
-  if (count < 4)
+  if (count < 8)
   {
     return false;
   }
@@ -559,7 +557,7 @@ void IcpLocal::TestMinimizeTranslate()
     ).toRotationMatrix();
   cout << rot << endl;
   selected_.clear();
-  selected_.reserve(SelectionAmount);
+  selected_.reserve(selectionAmount_);
   MatchedPoint mp;
   mp.normal = Eigen::Vector3f(0.f, 0.f, 1.f);
   mp.distance = 0.01f;

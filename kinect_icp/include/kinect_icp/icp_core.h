@@ -14,11 +14,17 @@ public:
 
   void registerCloud(const PCloud::ConstPtr& new_point_cloud);
   void visualizeNormals(const PCloud::ConstPtr& new_point_cloud);
+  void generateGroundTruth(const PCloud::ConstPtr& new_point_cloud);
 
   bool singleMerge_;
   bool accumulateResults_;
 
 private:
+
+  void oneIcpStep(const PCloud::ConstPtr& new_point_cloud);
+  void publishDiffToStart();
+  void compute(PCloud* cloud1, PCloud* cloud2, int max_iterations, int selection_amount);
+  void transformCloud(PCloud* cloud, float color, bool transformCoordinates=true);
 
   //Members
   std::vector<PCloud::ConstPtr> Clouds_;
@@ -28,11 +34,18 @@ private:
   PCloud* outCloud_;
   PCloud* cloud1_;
   PCloud* cloud2_;
+  PCloud* firstCloud_;
 
   IcpLocal* algorithm_;
 
   double totalTime_;
   int numComputes_;
+
+  float red_;
+  float green_;
+  float blue_;
+
+  int frameNum_;
 
   Eigen::Matrix4f lastTransformation_;
 };

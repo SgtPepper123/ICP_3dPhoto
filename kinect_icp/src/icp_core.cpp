@@ -29,9 +29,32 @@ IcpCore::IcpCore(ros::Publisher publisher)
   , algorithm_(NULL)
   , totalTime_(0)
   , numComputes_(0)
+  , frameNum_(0)
   , lastTransformation_(Eigen::Matrix4f::Identity())
 {
   Clouds_.reserve(1000);
+
+
+  RGBValue green;
+  green.Red = 0;
+  green.Green = 255;
+  green.Blue = 0;
+
+  green_ = green.float_value;
+
+  RGBValue red;
+  red.Red = 255;
+  red.Green = 0;
+  red.Blue = 0;
+
+  red_ = red.float_value;
+
+  RGBValue blue;
+  blue.Red = 0;
+  blue.Green = 0;
+  blue.Blue = 255;
+
+  blue_ = blue.float_value;
 }
 
 void IcpCore::visualizeNormals(const PCloud::ConstPtr& new_point_cloud)
@@ -97,6 +120,65 @@ void IcpCore::visualizeNormals(const PCloud::ConstPtr& new_point_cloud)
   publisher_.publish(*cloud);
 
   delete cloud;
+}
+
+void IcpCore::oneIcpStep(const PCloud::ConstPtr& new_point_cloud)
+{
+  if (cloud2_)
+  {
+    delete cloud2_;
+    cloud2_ = NULL;
+  }
+
+  cloud2_ = cloud1_;
+  cloud1_ = new PCloud(*new_point_cloud);
+
+  if (algorithm_)
+  {
+    delete algorithm_;
+  }
+
+  compute(cloud1_, cloud2_, 200, 60);
+}
+
+void IcpCore::compute(PCloud* cloud1, PCloud* cloud2, int max_iterations, int selection_amount)
+{
+  algorithm_ = new IcpLocal(cloud1, cloud2);
+  algorithm_->SetMaxIterations(max_iterations);
+  algorithm_->SetSelectionAmount(selection_amount);
+  algorithm_->Compute();
+
+  lastTransformation_ *= algorithm_->GetTransformation();
+}
+
+void IcpCore::publishDiffToStart()
+{
+
+  PCloud out(*firstCloud_);
+  PCloud cloud(*cloud1_);
+  transformCloud(&cloud, red_);
+
+  out += cloud;
+  publisher_.publish(out);
+}
+
+void IcpCore::transformCloud(PCloud* cloud, float color, bool transformCoordinates)
+{
+
+  BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud->points)
+  {
+    Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
+
+    pt.rgb = color;
+
+    if (transformCoordinates)
+    {
+      pnt = lastTransformation_ * pnt;
+      pt.x = pnt[0];
+      pt.y = pnt[1];
+      pt.z = pnt[2];
+    }
+  }
 }
 
 void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
@@ -226,4 +308,95 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 
   publisher_.publish(*outCloud_);
 
+}
+
+void IcpCore::generateGroundTruth(const PCloud::ConstPtr& new_point_cloud)
+{
+  ROS_DEBUG("Received Point Cloud");
+
+  const int max_frame = 58;
+  const int precision_diff = 10;
+  const int precision_steps = 5;
+  const int final_average_steps = 5;
+
+  // First step
+  if (!cloud1_)
+  {
+    cloud1_ = new PCloud(*new_point_cloud);
+    firstCloud_ = new PCloud(*new_point_cloud);
+
+    transformCloud(firstCloud_, green_);
+
+    return;
+  }
+
+  // Incremental mode
+  if (frameNum_ < max_frame)
+  {
+    frameNum_++;
+    cout << "Frame: " << frameNum_ << endl;
+
+    oneIcpStep(new_point_cloud);
+    publishDiffToStart();
+  }
+
+  // Refinement mode
+  if (frameNum_ % precision_diff == 0 || frameNum_ == max_frame)
+  {
+    for (int j = 0; j < precision_steps; j++)
+    {
+      PCloud cloud(*cloud1_);
+
+      transformCloud(&cloud, red_);
+      compute(&cloud, firstCloud_, 100, 1000);
+
+      cout << "Refinement: " << j << endl;
+
+      publishDiffToStart();
+    }
+
+    if (frameNum_ == max_frame)
+    {
+      Vector3f averageAngles(0, 0, 0);
+      Vector3f averageTranslation(0, 0, 0);
+
+      for (int j = 0; j < final_average_steps; j++)
+      {
+        PCloud cloud(*cloud1_);
+
+        transformCloud(&cloud, red_);
+        compute(&cloud, firstCloud_, 100, 1000);
+        publishDiffToStart();
+
+        Matrix3f rotation = lastTransformation_.topLeftCorner(3, 3);
+        Vector3f translation = lastTransformation_.topRightCorner(3, 1);
+        Vector3f angles = rotation.eulerAngles(0, 1, 2);
+        averageAngles += angles;
+        averageTranslation += translation;
+
+        cout << "Final Refinement: " << j << endl;
+        cout << angles << endl;
+        cout << translation << endl;
+      }
+
+      averageAngles /= final_average_steps;
+      averageTranslation /= final_average_steps;
+
+      cout << "Final Angles: " << endl;
+      cout << averageAngles << endl;
+      cout << "Final Translation" << endl;
+      cout << averageTranslation << endl;
+
+      lastTransformation_.topLeftCorner(3, 3) = (
+        AngleAxisf(averageAngles(0), Vector3f::UnitX()) *
+        AngleAxisf(averageAngles(1), Vector3f::UnitY()) *
+        AngleAxisf(averageAngles(2), Vector3f::UnitZ())
+        ).toRotationMatrix();
+
+
+      lastTransformation_.topRightCorner(3, 1) = averageTranslation;
+
+      publishDiffToStart();
+    }
+  }
 }
