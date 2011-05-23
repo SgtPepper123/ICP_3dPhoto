@@ -75,7 +75,7 @@ int device_stats(cl_device_id device_id)
     printf("Vector type width for: %s = %i\n", vector_type_names[i], vector_width);
   }
 
-  printf("\nMax Work Group Size: %lu\n", max_work_group_size);
+  printf("\nMax Work Group Size: %lu\n", (unsigned long) max_work_group_size);
   //printf("Max Work Item Dims: %lu\n",max_work_item_dims);
   //for(size_t i=0;i<max_work_item_dims;i++)
   //	printf("Max Work Items in Dim %lu: %lu\n",(long unsigned)(i+1),(long unsigned)max_work_item_sizes[i]);
