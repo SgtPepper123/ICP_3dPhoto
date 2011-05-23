@@ -345,7 +345,7 @@ __kernel void cube(__global float *Volume, __global float* VertexList, int N)
 			,{fx+step,fy,fz+step}
 			,{fx,fy,fz+step}
 			,{fx,fy+step,fz}
-			,{fx+step,fy+step}
+			,{fx+step,fy+step, fz}
 			,{fx+step,fy+step,fz+step}
 			,{fx,fy+step,fz+step}
 			};
