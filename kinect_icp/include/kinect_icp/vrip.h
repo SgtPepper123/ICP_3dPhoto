@@ -19,7 +19,7 @@ public:
   void fuseCloud(const PCloud::ConstPtr& new_point_cloud);
 
   void marchingCubes();
-  void preFixSum(cl_mem input, cl_mem output, int BlockSize);
+  int preFixSum(cl_mem input, cl_mem output, int BlockSize);
 
   class Vertex
   {
@@ -37,6 +37,9 @@ private:
   cl_mem march_mem_obj_;
   cl_mem image_mem_obj_;
   cl_context context_;
+  
+  int imageSize_;
+  int volumeSize_;
 
 };
 
