@@ -34,6 +34,11 @@ private:
   cl_kernel fuse_kernel_;
   cl_kernel preMarching_;
   cl_kernel mainMarching_;
+
+  cl_kernel scanLargeArrays_;
+  cl_kernel blockAddition_;
+  cl_kernel prefixSum_;
+  
   cl_device_id device_id_;
   cl_mem volume_mem_obj_;
   cl_mem march_mem_obj_;
