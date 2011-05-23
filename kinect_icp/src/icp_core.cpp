@@ -138,7 +138,7 @@ void IcpCore::oneIcpStep(const PCloud::ConstPtr& new_point_cloud)
     delete algorithm_;
   }
 
-  compute(cloud1_, cloud2_, 200, 60);
+  compute(cloud1_, cloud2_, 100, 100);
 }
 
 void IcpCore::compute(PCloud* cloud1, PCloud* cloud2, int max_iterations, int selection_amount)
@@ -146,7 +146,7 @@ void IcpCore::compute(PCloud* cloud1, PCloud* cloud2, int max_iterations, int se
   algorithm_ = new IcpLocal(cloud1, cloud2);
   algorithm_->SetMaxIterations(max_iterations);
   algorithm_->SetSelectionAmount(selection_amount);
-  algorithm_->Compute();
+  cout << "Time: " << algorithm_->Compute() << endl;
 
   lastTransformation_ *= algorithm_->GetTransformation();
 }
@@ -310,11 +310,77 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 
 }
 
+void IcpCore::tuneParameters(const PCloud::ConstPtr& new_point_cloud)
+{
+  const int max_frame = 49;
+
+  // First step
+  if (!cloud1_)
+  {
+    frameNum_++;
+
+    cloud1_ = new PCloud(*new_point_cloud);
+    return;
+  }
+
+  // Incremental mode
+  if (frameNum_ < max_frame)
+  {
+    frameNum_++;
+    cout << "Frame: " << frameNum_ << endl;
+
+    oneIcpStep(new_point_cloud);
+  }
+
+  if (frameNum_ == max_frame)
+  {
+    /*Final Angles:
+
+Final Translation
+     */
+
+    PCloud bad(*cloud1_);
+    transformCloud(&bad, red_);
+    cout << "Bad transformation:" << endl;
+    Matrix3f rotation = lastTransformation_.topLeftCorner(3, 3);
+    Vector3f translation = lastTransformation_.topRightCorner(3, 1);
+    Vector3f angles = rotation.eulerAngles(0, 1, 2);
+
+    cout << "Angles:" << endl;
+    cout << angles << endl;
+    cout << "Translation:" << endl;
+    cout << translation << endl;
+
+    angles = Vector3f(-0.0507161, 0.0205142, 0.0105023);
+    translation = Vector3f(0.552078, -0.11558, -0.0119312);
+
+    lastTransformation_.topLeftCorner(3, 3) = (
+      AngleAxisf(angles(0), Vector3f::UnitX()) *
+      AngleAxisf(angles(1), Vector3f::UnitY()) *
+      AngleAxisf(angles(2), Vector3f::UnitZ())
+      ).toRotationMatrix();
+
+
+    lastTransformation_.topRightCorner(3, 1) = translation;
+
+    transformCloud(cloud1_, green_);
+    cout << "Good transformation:" << endl;
+    cout << "Angles:" << endl;
+    cout << angles << endl;
+    cout << "Translation:" << endl;
+    cout << translation << endl;
+
+    *cloud1_ += bad;
+
+    publisher_.publish(*cloud1_);
+  }
+}
+
 void IcpCore::generateGroundTruth(const PCloud::ConstPtr& new_point_cloud)
 {
   ROS_DEBUG("Received Point Cloud");
 
-  const int max_frame = 58;
+  const int max_frame = 49;
   const int precision_diff = 10;
   const int precision_steps = 5;
   const int final_average_steps = 5;

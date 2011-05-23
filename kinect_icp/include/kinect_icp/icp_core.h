@@ -15,6 +15,7 @@ public:
   void registerCloud(const PCloud::ConstPtr& new_point_cloud);
   void visualizeNormals(const PCloud::ConstPtr& new_point_cloud);
   void generateGroundTruth(const PCloud::ConstPtr& new_point_cloud);
+  void tuneParameters(const PCloud::ConstPtr& new_point_cloud);
 
   bool singleMerge_;
   bool accumulateResults_;
