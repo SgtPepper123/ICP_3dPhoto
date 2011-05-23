@@ -20,6 +20,8 @@ public:
 
   void marchingCubes();
   void preFixSum(cl_mem input, cl_mem output, int BlockSize);
+  void loadKernel(const char* filename, int num_kernels, cl_kernel kernels[],
+  const char* kernel_names[]);
 
   class Vertex
   {
@@ -29,10 +31,10 @@ public:
 
 private:
   cl_command_queue command_queue_;
-  cl_kernel kernel_;
+  cl_kernel fuse_kernel_;
   cl_kernel preMarching_;
   cl_kernel mainMarching_;
-  cl_program program_;
+  cl_device_id device_id_;
   cl_mem volume_mem_obj_;
   cl_mem march_mem_obj_;
   cl_mem image_mem_obj_;

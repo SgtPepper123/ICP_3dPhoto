@@ -90,57 +90,41 @@ const int Volume_Size = 16;
 const float d_max = 0.05;
 const float d_min = -d_max;
 
+#define CHECK(value) if (value != 0) {std::cerr << "An Error occurred at " << __FILE__ << ":" << __LINE__ << std::endl; exit(1);}
+
 Vrip::Vrip()
 {
-  // Load the kernel source code into the array source_str
-  FILE *fp;
-  char *source_str;
-  size_t source_size;
-
-  fp = fopen("fuse.cl", "r");
-  if (!fp)
-  {
-    fprintf(stderr, "Failed to load kernel.\n");
-    exit(1);
-  }
-  source_str = (char*) malloc(MAX_SOURCE_SIZE);
-  source_size = fread(source_str, 1, MAX_SOURCE_SIZE, fp);
-  fclose(fp);
   // Get platform and device information
   cl_platform_id platform_id = NULL;
-  cl_device_id device_id = NULL;
   cl_uint ret_num_devices;
   cl_uint ret_num_platforms;
   cl_int ret = clGetPlatformIDs(1, &platform_id, &ret_num_platforms);
   ret = clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_ALL, 1,
-    &device_id, &ret_num_devices);
+    &device_id_, &ret_num_devices);
 
-  device_stats(device_id);
+  device_stats(device_id_);
 
   // Create an OpenCL context
-  context_ = clCreateContext(NULL, 1, &device_id, NULL, NULL, &ret);
-  std::cout << ret << std::endl;
+  context_ = clCreateContext(NULL, 1, &device_id_, NULL, NULL, &ret);
+  CHECK(ret);
 
   // Create a command queue
-  command_queue_ = clCreateCommandQueue(context_, device_id, 0, &ret);
-  std::cout << ret << std::endl;
+  command_queue_ = clCreateCommandQueue(context_, device_id_, 0, &ret);
+  CHECK(ret);
 
   int volumesize = Volume_Size * Volume_Size * Volume_Size * 2;
   // Create memory buffers on the device for each vector
   volume_mem_obj_ = clCreateBuffer(context_, CL_MEM_READ_WRITE,
     volumesize * sizeof (float), NULL, &ret);
-
-  std::cout << ret << std::endl;
+  CHECK(ret);
 
   march_mem_obj_ = clCreateBuffer(context_, CL_MEM_WRITE_ONLY,
     volumesize / 2 * sizeof (float), NULL, &ret);
-
-  std::cout << ret << std::endl;
+  CHECK(ret);
 
   image_mem_obj_ = clCreateBuffer(context_, CL_MEM_READ_ONLY,
     Volume_Size * Volume_Size * sizeof (float) * 6, NULL, &ret);
-
-  std::cout << ret << std::endl;
+  CHECK(ret);
 
   float* volume = (float*) malloc(volumesize * sizeof (float));
   int i = 0;
@@ -151,34 +135,58 @@ Vrip::Vrip()
   }
 
   // Copy the lists A and B to their respective memory buffers
-  ret = clEnqueueWriteBuffer(command_queue_, volume_mem_obj_, CL_TRUE, 0,
-    volumesize * sizeof (float), volume, 0, NULL, NULL);
+  CHECK(clEnqueueWriteBuffer(command_queue_, volume_mem_obj_, CL_TRUE, 0,
+    volumesize * sizeof (float), volume, 0, NULL, NULL));
 
   free(volume);
 
-  // Create a program from the kernel source
-  program_ = clCreateProgramWithSource(context_, 1,
-    (const char **) &source_str, (const size_t *) &source_size, &ret);
+  cl_kernel kernels[2] = {fuse_kernel_, mainMarching_};
+  const char* names[2] = {"fuse", "precube"};
 
-  std::cout << ret << std::endl;
+  loadKernel("fuse.cl", 2, kernels, names);
+}
+
+void Vrip::loadKernel(const char* filename, int num_kernels, cl_kernel kernels[],
+  const char* kernel_names[])
+{
+  // Load the kernel source code into the array source_str
+  FILE *fp;
+  char *source_str = (char*) malloc(MAX_SOURCE_SIZE);
+  size_t source_size;
+
+  fp = fopen(filename, "r");
+  CHECK(!fp);
+
+  source_size = fread(source_str, 1, MAX_SOURCE_SIZE, fp);
+  fclose(fp);
+
+  // Create a program from the kernel source
+  cl_int ret;
+  cl_program program;
+  program = clCreateProgramWithSource(context_, 1,
+    (const char **) &source_str, &source_size, &ret);
+  CHECK(ret);
+
   // Build the program
-  ret = clBuildProgram(program_, 1, &device_id, NULL, NULL, NULL);
-  std::cout << ret << std::endl;
+  CHECK(clBuildProgram(program, 1, &device_id_, NULL, NULL, NULL));
 
   char buffer[2048];
   size_t len;
-  clGetProgramBuildInfo(program_, device_id, CL_PROGRAM_BUILD_LOG, sizeof (buffer), buffer, &len);
+  clGetProgramBuildInfo(program, device_id_, CL_PROGRAM_BUILD_LOG, sizeof (buffer), buffer, &len);
 
   std::cout << buffer << std::endl;
 
-  // Create the OpenCL kernel
-  kernel_ = clCreateKernel(program_, "fuse", &ret);
-  std::cout << ret << std::endl;
+  for (int i=0; i<num_kernels; i++)
+  {
+    // Create the OpenCL kernel
+    kernels[i] = clCreateKernel(program, kernel_names[i], &ret);
+    CHECK(ret);
+  }
 
-  // Create the OpenCL kernel
-  mainMarching_ = clCreateKernel(program_, "precube", &ret);
-  std::cout << ret << std::endl;
+  // Release program
+  CHECK(clReleaseProgram(program));
 
+  free(source_str);
 }
 
 Vrip::~Vrip()
@@ -186,8 +194,8 @@ Vrip::~Vrip()
   // Clean up
   cl_int ret = clFlush(command_queue_);
   ret = clFinish(command_queue_);
-  ret = clReleaseKernel(kernel_);
-  ret = clReleaseProgram(program_);
+  ret = clReleaseKernel(fuse_kernel_);
+  ret = clReleaseKernel(mainMarching_);
   ret = clReleaseMemObject(volume_mem_obj_);
   ret = clReleaseMemObject(image_mem_obj_);
   ret = clReleaseCommandQueue(command_queue_);
@@ -221,16 +229,16 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   free(image);
 
   // Set the arguments of the kernel
-  ret = clSetKernelArg(kernel_, 0, sizeof (cl_mem), (void *) &volume_mem_obj_);
-  ret = clSetKernelArg(kernel_, 1, sizeof (cl_mem), (void *) &image_mem_obj_);
-  ret = clSetKernelArg(kernel_, 2, sizeof (int), (void *) &Volume_Size);
-  ret = clSetKernelArg(kernel_, 3, sizeof (float), (void *) &d_min);
-  ret = clSetKernelArg(kernel_, 4, sizeof (float), (void *) &d_max);
+  ret = clSetKernelArg(fuse_kernel_, 0, sizeof (cl_mem), (void *) &volume_mem_obj_);
+  ret = clSetKernelArg(fuse_kernel_, 1, sizeof (cl_mem), (void *) &image_mem_obj_);
+  ret = clSetKernelArg(fuse_kernel_, 2, sizeof (int), (void *) &Volume_Size);
+  ret = clSetKernelArg(fuse_kernel_, 3, sizeof (float), (void *) &d_min);
+  ret = clSetKernelArg(fuse_kernel_, 4, sizeof (float), (void *) &d_max);
 
   // Execute the OpenCL kernel on the list
   size_t localWorkSize[] = {16, 16};
   size_t globalWorkSize[] = {Volume_Size, Volume_Size};
-  ret = clEnqueueNDRangeKernel(command_queue_, kernel_, 2, NULL,
+  ret = clEnqueueNDRangeKernel(command_queue_, fuse_kernel_, 2, NULL,
     globalWorkSize, localWorkSize, 0, NULL, NULL);
 
   int volumesize = Volume_Size * Volume_Size * Volume_Size * 2;
