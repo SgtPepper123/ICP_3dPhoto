@@ -185,6 +185,135 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 {
   ROS_DEBUG("Received Point Cloud");
 
+  if (singleMerge_)
+  {
+    if (!algorithm_)
+    {
+      if (!cloud1_)
+      {
+        cloud1_ = new PCloud(*new_point_cloud);
+        return;
+      }
+
+      cloud2_ = new PCloud(*new_point_cloud);
+
+      algorithm_ = new IcpLocal(cloud1_, cloud2_);
+    }
+
+    if (outCloud_)
+    {
+      delete outCloud_;
+      outCloud_ = NULL;
+    }
+
+    outCloud_ = new PCloud(*cloud1_);
+  }
+  else
+  {
+    if (!cloud1_)
+    {
+      cloud1_ = new PCloud(*new_point_cloud);
+      outCloud_ = new PCloud(*new_point_cloud);
+      publisher_.publish(new_point_cloud);
+      return;
+    }
+
+    if (cloud2_)
+    {
+      delete cloud2_;
+      cloud2_ = NULL;
+    }
+
+    cloud2_ = cloud1_;
+      cloud1_ = new PCloud(*new_point_cloud);
+    if(!accumulateResults_)
+    {
+      delete outCloud_;
+      outCloud_ = new PCloud(*cloud2_);
+    }
+    IcpLocal* tmpAlgo = new IcpLocal(cloud1_, cloud2_);
+
+    if (algorithm_)
+    {
+      //tmpAlgo->SetTransformation(algorithm_->GetTransformation());
+      delete algorithm_;
+    }
+
+    algorithm_ = tmpAlgo;
+
+    algorithm_->SetMaxIterations(200);
+
+  }
+
+  //algorithm.TestMinimizeTranslate();
+  numComputes_++;
+  totalTime_ += algorithm_->Compute();
+  cout << "Average: " << totalTime_ / numComputes_ << " ms (" << totalTime_ << "/" << numComputes_ << ")" << endl;
+
+  if (singleMerge_)
+  {
+    RGBValue color;
+    //color.float_value = pt.rgb;
+    color.Red = 0;
+    color.Green = 0;
+    color.Blue = 255;
+
+    Eigen::Matrix4f mat = algorithm_->GetTransformation();
+
+    BOOST_FOREACH(pcl::PointXYZRGB& pt, outCloud_->points)
+    {
+      Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
+      pnt = mat * pnt;
+      pt.x = pnt[0];
+      pt.y = pnt[1];
+      pt.z = pnt[2];
+      pt.rgb = color.float_value;
+    }
+
+    color.Blue = 0;
+    color.Red = 255;
+
+    BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud2_->points)
+    {
+      pt.rgb = color.float_value;
+    }
+
+    *outCloud_ += *cloud2_;
+    algorithm_->SetMaxIterations(1);
+  }
+  else
+  {
+    PCloud cloud(*cloud1_);
+    if(accumulateResults_)
+    {
+      lastTransformation_ *= algorithm_->GetTransformation();
+    }
+    else
+    {
+      lastTransformation_ = algorithm_->GetTransformation();
+    }
+
+    BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud.points)
+    {
+      Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
+      pnt = lastTransformation_ * pnt;
+      pt.x = pnt[0];
+      pt.y = pnt[1];
+      pt.z = pnt[2];
+    }
+
+    *outCloud_ += cloud;
+
+  }
+
+  publisher_.publish(*outCloud_);
+
+}
+
+void IcpCore::generateGroundTruth(const PCloud::ConstPtr& new_point_cloud)
+{
+  ROS_DEBUG("Received Point Cloud");
+
   const int max_frame = 58;
   const int precision_diff = 10;
   const int precision_steps = 5;
