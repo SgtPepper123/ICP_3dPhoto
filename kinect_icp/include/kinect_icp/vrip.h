@@ -18,6 +18,12 @@ public:
   
   void fuseCloud(const PCloud::ConstPtr& new_point_cloud);
   
+  class Vertex
+  {
+  public:
+    float x,y,z;
+  };
+  
 private:
   cl_command_queue command_queue_;
   cl_kernel kernel_;
