@@ -293,15 +293,15 @@ typedef struct tag_vertex {
 
 vertex interpolate(vertex p1, vertex p2, float valp1, float valp2) 
 {
-    if(fabs(valp1) < 0.0001)
+    if(fabs(valp1) < 0.0001f)
         return p1;
-    if(fabs(valp2) < 0.0001)
+    if(fabs(valp2) < 0.0001f)
         return p2;
-    if(fabs(valp1 - valp2) < 0.0001)
+    if(fabs(valp1 - valp2) < 0.0001f)
         return p1;
 
     vertex p;
-    float diff = 0.5;//(float)(0.f - valp1) / (valp2 - valp1);
+    float diff = 0.5f;//(float)(0.f - valp1) / (valp2 - valp1);
     p.x = p1.x + diff * (p2.x - p1.x);
     p.y = p1.y + diff * (p2.y - p1.y);
     p.z = p1.z + diff * (p2.z - p1.z);
