@@ -11,7 +11,7 @@ __kernel void fuse(__global float *Volume, __global float *Image, int N, float d
       float dist = max(d_min, min(d_max, voxelDepth-depth));
       int index = 2*(ix + iy*N + iz*N*N);
       Volume[index] = dist;
-      Volume[index+1] = 1.0;
+      Volume[index+1] = 1.f;
     }
 
 }
@@ -293,15 +293,15 @@ typedef struct tag_vertex {
 
 vertex interpolate(vertex p1, vertex p2, float valp1, float valp2) 
 {
-    if(fabs(valp1) < 0.0001)
+    if(fabs(valp1) < 0.0001f)
         return p1;
-    if(fabs(valp2) < 0.0001)
+    if(fabs(valp2) < 0.0001f)
         return p2;
-    if(fabs(valp1 - valp2) < 0.0001)
+    if(fabs(valp1 - valp2) < 0.0001f)
         return p1;
 
     vertex p;
-    float diff = 0.5;//(float)(0.f - valp1) / (valp2 - valp1);
+    float diff = 0.5f;//(float)(0.f - valp1) / (valp2 - valp1);
     p.x = p1.x + diff * (p2.x - p1.x);
     p.y = p1.y + diff * (p2.y - p1.y);
     p.z = p1.z + diff * (p2.z - p1.z);
@@ -320,7 +320,9 @@ __kernel void cube(__global float *Volume, __global float* VertexList, int N)
     int iy = get_global_id(1);
     int iz = get_global_id(2);
     
-    if(ix > 0 && iy > 0 && iz > 0 && ix < N-1 && iy < N-1 && iz < N-1)
+    int i = 0;
+    int index = Index(ix,iy,iz,N)/2*45;
+    if(ix >= 0 && iy >= 0 && iz >= 0 && ix < N-1 && iy < N-1 && iz < N-1)
     {
 			float v0 = Volume[Index(ix,iy,iz,N)];
 			float v1 = Volume[Index(ix+1,iy,iz,N)];
@@ -350,8 +352,6 @@ __kernel void cube(__global float *Volume, __global float* VertexList, int N)
 			
 			int cubeindex = ((int)(v0 > 0) << 0) | ((int)(v1 > 0) << 1) | ((int)(v2 > 0) << 2) | ((int)(v3 > 0) << 3) | ((int)(v4 > 0) << 4) | ((int)(v5 > 0) << 5) | ((int)(v6 > 0) << 6) | ((int)(v7 > 0) << 7);
       
-      int i = 0;
-      int index = Index(ix,iy,iz,N)/2*45;
       if(cubeindex != 0 && cubeindex != 255)
       {
         vertex vertlist[12];
@@ -380,11 +380,11 @@ __kernel void cube(__global float *Volume, __global float* VertexList, int N)
           tableIndex = triTable[cubeindex][i];
         }while(tableIndex != -1);
       }
-      /*for(;i < 15; ++i)
-      {
-        VertexList[index+i*3] = -1.f;
-        VertexList[index+i*3+1] = -1.f;
-        VertexList[index+i*3+2] = -1.f;
-      }*/
    }
+  for(;i < 15; ++i)
+  {
+    VertexList[index+i*3] = -1.f;
+    VertexList[index+i*3+1] = -1.f;
+    VertexList[index+i*3+2] = -1.f;
+  }
 }
