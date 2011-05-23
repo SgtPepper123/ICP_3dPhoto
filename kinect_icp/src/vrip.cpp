@@ -238,6 +238,8 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
 
   clFinish(command_queue_);
 
+  std::cout << "Marching cubes started" << std::endl;
+
   // Set the arguments of the kernel
   ret = clSetKernelArg(kernelMarching_, 0, sizeof(cl_mem), (void *)&volume_mem_obj_);
   ret = clSetKernelArg(kernelMarching_, 1, sizeof(cl_mem), (void *)&march_mem_obj_);
@@ -300,6 +302,8 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
     }
     std::cout << std::endl;
   }*/
+  
+  std::cout << "Marching cubes finished" << std::endl;
 
 }
 
