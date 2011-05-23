@@ -35,7 +35,7 @@ int device_stats(cl_device_id device_id)
   size_t max_work_item_dims, max_work_group_size, max_work_item_sizes[3];
 
   cl_uint vector_types[] = {CL_DEVICE_PREFERRED_VECTOR_WIDTH_CHAR, CL_DEVICE_PREFERRED_VECTOR_WIDTH_SHORT, CL_DEVICE_PREFERRED_VECTOR_WIDTH_INT, CL_DEVICE_PREFERRED_VECTOR_WIDTH_LONG, CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT, CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE};
-  char *vector_type_names[] = {"char", "short", "int", "long", "float", "double"};
+  const char *vector_type_names[] = {"char", "short", "int", "long", "float", "double"};
 
   err = clGetDeviceInfo(device_id, CL_DEVICE_VENDOR, sizeof (vendor_name), vendor_name, &returned_size);
   err |= clGetDeviceInfo(device_id, CL_DEVICE_NAME, sizeof (device_name), device_name, &returned_size);
@@ -75,7 +75,7 @@ int device_stats(cl_device_id device_id)
     printf("Vector type width for: %s = %i\n", vector_type_names[i], vector_width);
   }
 
-  printf("\nMax Work Group Size: %u\n", max_work_group_size);
+  printf("\nMax Work Group Size: %lu\n", max_work_group_size);
   //printf("Max Work Item Dims: %lu\n",max_work_item_dims);
   //for(size_t i=0;i<max_work_item_dims;i++)
   //	printf("Max Work Items in Dim %lu: %lu\n",(long unsigned)(i+1),(long unsigned)max_work_item_sizes[i]);
@@ -260,7 +260,6 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
 
   clFinish(command_queue_);
 
-  int count;
   std::vector<Vertex> vertieces;
   for (int i = 0; i < volumesize / 2; ++i)
   {
@@ -287,7 +286,7 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   {
     File << it->x << " " << it->y << " " << it->z << std::endl;
   }
-  for (int i = 0; i < vertieces.size() / 3; ++i)
+  for (unsigned int i = 0; i < vertieces.size() / 3; ++i)
   {
     File << 3 << " " << i * 3 << " " << i * 3 + 1 << " " << i * 3 + 2 << std::endl;
   }
