@@ -140,17 +140,17 @@ Vrip::Vrip()
 
   // Copy the lists A and B to their respective memory buffers
   CHECK(clEnqueueWriteBuffer(command_queue_, volume_mem_obj_, CL_TRUE, 0,
-    volumeSize_ * sizeof (float), volume, 0, NULL, NULL));
+    volumeSize_ * 2 * sizeof (float), volume, 0, NULL, NULL));
 
   free(volume);
 
-  cl_kernel kernels[3] = {fuse_kernel_, preMarching_, mainMarching_};
+  cl_kernel* kernels[3] = {&fuse_kernel_, &preMarching_, &mainMarching_};
   const char* names[3] = {"fuse", "precube", "cube"};
 
-  loadKernel("fuse.cl", 2, kernels, names);
+  loadKernel("fuse.cl", 3, kernels, names);
 }
 
-void Vrip::loadKernel(const char* filename, int num_kernels, cl_kernel kernels[],
+void Vrip::loadKernel(const char* filename, int num_kernels, cl_kernel* kernels[],
   const char* kernel_names[])
 {
   // Load the kernel source code into the array source_str
@@ -183,7 +183,7 @@ void Vrip::loadKernel(const char* filename, int num_kernels, cl_kernel kernels[]
   for (int i=0; i<num_kernels; i++)
   {
     // Create the OpenCL kernel
-    kernels[i] = clCreateKernel(program, kernel_names[i], &ret);
+    *kernels[i] = clCreateKernel(program, kernel_names[i], &ret);
     CHECK(ret);
   }
 
@@ -225,9 +225,10 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
       image[index++] = 0;
     }
   }
-
+  
   cl_int ret = clEnqueueWriteBuffer(command_queue_, image_mem_obj_, CL_TRUE, 0,
     imageSize_ * sizeof (float), image, 0, NULL, NULL);
+    
   clFinish(command_queue_);
 
   free(image);
@@ -263,6 +264,8 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
     }
     std::cout << std::endl;
   }*/
+  
+  marchingCubes();
 }
 
 void Vrip::marchingCubes()
@@ -281,12 +284,14 @@ void Vrip::marchingCubes()
 
   std::cout << "pre Marching cubes finished" << std::endl;
 
-  int memoryToAllocate = preFixSum(march_mem_obj_, march_mem_obj_, 16*16);
+  int memoryToAllocate = preFixSum(march_mem_obj_, march_mem_obj_, 1024);
 
   std::cout << "Marching cubes started" << std::endl;
 
   cl_mem out_mem_obj = clCreateBuffer(context_, CL_MEM_WRITE_ONLY,
     memoryToAllocate * sizeof (float), NULL, &ret);
+    
+  CHECK(ret);
 
   // Set the arguments of the kernel
   ret = clSetKernelArg(mainMarching_, 0, sizeof (cl_mem), (void *) &volume_mem_obj_);
@@ -297,12 +302,10 @@ void Vrip::marchingCubes()
   ret = clEnqueueNDRangeKernel(command_queue_, mainMarching_, 3, NULL,
     globalWorkSize3D, localWorkSize3D, 0, NULL, NULL);
 
-  std::cout << "Marching cubes finished" << std::endl;
-
   float* hostOut = (float*) malloc(memoryToAllocate * sizeof (float));
 
   ret = clEnqueueReadBuffer(command_queue_, out_mem_obj, CL_TRUE, 0,
-    memoryToAllocate, hostOut, 0, NULL, NULL);
+    memoryToAllocate * sizeof(float), hostOut, 0, NULL, NULL);
 
   clFinish(command_queue_);
 
@@ -333,6 +336,25 @@ void Vrip::marchingCubes()
 
 int Vrip::preFixSum(cl_mem input, cl_mem output, int BlockSize)
 {
-  return 0;
+  int* sumArray = (int*) malloc(volumeSize_ *sizeof (int));
+  CHECK(clEnqueueReadBuffer(command_queue_, input, CL_TRUE, 0,
+    volumeSize_ * sizeof (int), sumArray, 0, NULL, NULL));
+  
+  clFinish(command_queue_);  
+  
+  int sum = 0;
+  for(int i = 0; i < volumeSize_; ++i)
+  {
+    int tmp = sumArray[i];
+    sumArray[i] = sum;
+    sum += tmp;
+  }
+  
+  CHECK(clEnqueueWriteBuffer(command_queue_, output, CL_TRUE, 0,
+    volumeSize_ * sizeof (int), sumArray, 0, NULL, NULL));
+   
+  free(sumArray);
+  
+  return sum;
 }
 

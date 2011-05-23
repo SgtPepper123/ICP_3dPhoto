@@ -20,7 +20,7 @@ public:
 
   void marchingCubes();
   int preFixSum(cl_mem input, cl_mem output, int BlockSize);
-  void loadKernel(const char* filename, int num_kernels, cl_kernel kernels[],
+  void loadKernel(const char* filename, int num_kernels, cl_kernel* kernels[],
   const char* kernel_names[]);
 
   class Vertex
