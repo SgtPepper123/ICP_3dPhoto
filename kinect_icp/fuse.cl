@@ -1,9 +1,9 @@
-__kernel void fuse(__global float *Volume, __global float *Image, int N, float d_min, float d_max) 
-{ 
+__kernel void fuse(__global float *Volume, __global float *Image, int N, float d_min, float d_max)
+{
     // Get the index of the current element
     int ix = get_global_id(0);
     int iy = get_global_id(1);
-    
+
     for(int iz = 0; iz < N; ++iz)
     {
       float depth = Image[4*(ix + iy*N) + 2];
@@ -281,7 +281,7 @@ __constant int triTable[256][16] =
 
 typedef struct tag_vertex {
 	float x;
-	float y; 
+	float y;
 	float z;
 	//float normal_x, normal_y, normal_z;
 }vertex;
@@ -291,7 +291,7 @@ typedef struct tag_vertex {
 	uchar val[8];
 };*/
 
-vertex interpolate(vertex p1, vertex p2, float valp1, float valp2) 
+vertex interpolate(vertex p1, vertex p2, float valp1, float valp2)
 {
     if(fabs(valp1) < 0.0001f)
         return p1;
@@ -313,13 +313,13 @@ vertex interpolate(vertex p1, vertex p2, float valp1, float valp2)
     return p;
 }
 
-__kernel void cube(__global float *Volume, __global float* VertexList, int N) 
-{ 
+__kernel void cube(__global float *Volume, __global float* VertexList, int N)
+{
     // Get the index of the current element
     int ix = get_global_id(0);
     int iy = get_global_id(1);
     int iz = get_global_id(2);
-    
+
     int i = 0;
     int index = Index(ix,iy,iz,N)/2*45;
     if(ix >= 0 && iy >= 0 && iz >= 0 && ix < N-1 && iy < N-1 && iz < N-1)
@@ -332,13 +332,13 @@ __kernel void cube(__global float *Volume, __global float* VertexList, int N)
 			float v5 = Volume[Index(ix+1,iy+1,iz,N)];
 			float v6 = Volume[Index(ix+1,iy+1,iz+1,N)];
 			float v7 = Volume[Index(ix,iy+1,iz+1,N)];
-			
+
 			float fx = (float)ix/(float)N;
 			float fy = (float)iy/(float)N;
 			float fz = (float)iz/(float)N;
 
 			float step = 1.f/(float)N;
-			
+
 			vertex vertieces[8] = {
 			{fx,fy,fz}
 			,{fx+step,fy,fz}
@@ -349,9 +349,9 @@ __kernel void cube(__global float *Volume, __global float* VertexList, int N)
 			,{fx+step,fy+step,fz+step}
 			,{fx,fy+step,fz+step}
 			};
-			
+
 			int cubeindex = ((int)(v0 > 0) << 0) | ((int)(v1 > 0) << 1) | ((int)(v2 > 0) << 2) | ((int)(v3 > 0) << 3) | ((int)(v4 > 0) << 4) | ((int)(v5 > 0) << 5) | ((int)(v6 > 0) << 6) | ((int)(v7 > 0) << 7);
-      
+
       if(cubeindex != 0 && cubeindex != 255)
       {
         vertex vertlist[12];
