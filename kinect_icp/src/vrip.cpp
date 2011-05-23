@@ -130,7 +130,7 @@ Vrip::Vrip()
   std::cout << ret << std::endl;
 
   march_mem_obj_ = clCreateBuffer(context_, CL_MEM_WRITE_ONLY,
-          volumesize/2*3*15 * sizeof(float), NULL, &ret);
+          volumesize/2 * sizeof(float), NULL, &ret);
 
   std::cout << ret << std::endl;
 
@@ -173,7 +173,7 @@ Vrip::Vrip()
   std::cout << ret << std::endl;
 
   // Create the OpenCL kernel
-  kernelMarching_ = clCreateKernel(program_, "cube", &ret);
+  mainMarching_ = clCreateKernel(program_, "precube", &ret);
   std::cout << ret << std::endl;
 
 }
@@ -241,13 +241,13 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   std::cout << "Marching cubes started" << std::endl;
 
   // Set the arguments of the kernel
-  ret = clSetKernelArg(kernelMarching_, 0, sizeof(cl_mem), (void *)&volume_mem_obj_);
-  ret = clSetKernelArg(kernelMarching_, 1, sizeof(cl_mem), (void *)&march_mem_obj_);
-  ret = clSetKernelArg(kernelMarching_, 2, sizeof(int), (void *)&Volume_Size);
+  ret = clSetKernelArg(mainMarching_, 0, sizeof(cl_mem), (void *)&volume_mem_obj_);
+  ret = clSetKernelArg(mainMarching_, 1, sizeof(cl_mem), (void *)&march_mem_obj_);
+  ret = clSetKernelArg(mainMarching_, 2, sizeof(int), (void *)&Volume_Size);
 
   size_t localWorkSize3D[] = {16, 16, 1};
   size_t globalWorkSize3D[] = {Volume_Size, Volume_Size, Volume_Size};
-  ret = clEnqueueNDRangeKernel(command_queue_, kernelMarching_, 3, NULL,
+  ret = clEnqueueNDRangeKernel(command_queue_, mainMarching_, 3, NULL,
           globalWorkSize3D, localWorkSize3D, 0, NULL, NULL);
 
   float* march = (float*) malloc(volumesize/2*3*15 * sizeof(float));
@@ -306,4 +306,15 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   std::cout << "Marching cubes finished" << std::endl;
 
 }
+
+void marchingCubes()
+{
+
+}
+
+void preFixSum(cl_mem input, cl_mem output, int BlockSize)
+{
+
+}
+
 

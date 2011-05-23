@@ -18,6 +18,9 @@ public:
   
   void fuseCloud(const PCloud::ConstPtr& new_point_cloud);
   
+  void marchingCubes();
+  void preFixSum(cl_mem input, cl_mem output, int BlockSize);
+  
   class Vertex
   {
   public:
@@ -27,7 +30,8 @@ public:
 private:
   cl_command_queue command_queue_;
   cl_kernel kernel_;
-  cl_kernel kernelMarching_;
+  cl_kernel preMarching_;
+  cl_kernel mainMarching_;
   cl_program program_;
   cl_mem volume_mem_obj_;
   cl_mem march_mem_obj_;
