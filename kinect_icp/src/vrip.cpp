@@ -83,10 +83,9 @@ int device_stats(cl_device_id device_id){
 	return CL_SUCCESS;
 }
 
-#define Volume_Size 16
-#define d_min -0.125
-#define d_max 0.125
-
+const int Volume_Size = 16;
+const float d_max = 0.05;
+const float d_min = -d_max;
 
 Vrip::Vrip()
 {
@@ -155,6 +154,13 @@ Vrip::Vrip()
   std::cout << ret << std::endl;
   // Build the program
   ret = clBuildProgram(program_, 1, &device_id, NULL, NULL, NULL);
+  std::cout << ret << std::endl;
+  
+  char buffer[2048];
+  size_t len;
+  clGetProgramBuildInfo(program_, device_id, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+  
+  std::cout << buffer << std::endl;
 
   // Create the OpenCL kernel
   kernel_ = clCreateKernel(program_, "fuse", &ret);
@@ -178,31 +184,34 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
 {
   int imagesize = Volume_Size * Volume_Size * 4;
   float* image = (float*) malloc(imagesize * sizeof(float));
+  int index = 0;
   for(int i = 0; i < Volume_Size; ++i)
   {
     for(int j = 0; j < Volume_Size; ++j)
     {
       float ii = (float)i/(float)Volume_Size;
       float jj = (float)j/(float)Volume_Size;
-      image[i++] = ii;
-      image[i++] = jj;
-      image[i++] = (ii-0.5f)*(ii-0.5f) + (jj-0.5f)*(jj-0.5f) + 0.25;
+      image[index++] = ii;
+      image[index++] = jj;
+      image[index++] = (ii-0.5f)*(ii-0.5f) + (jj-0.5f)*(jj-0.5f) + 0.25;
       
       //RBG actually not used but will be in the data
-      image[i++] = 0;
+      image[index++] = 0;
     }
   }
          
   cl_int ret = clEnqueueWriteBuffer(command_queue_, image_mem_obj_, CL_TRUE, 0,
           imagesize * sizeof(float), image, 0, NULL, NULL);
+  clFinish(command_queue_);
           
   free(image); 
 
   // Set the arguments of the kernel
-  int N = Volume_Size;
   ret = clSetKernelArg(kernel_, 0, sizeof(cl_mem), (void *)&volume_mem_obj_);
   ret = clSetKernelArg(kernel_, 1, sizeof(cl_mem), (void *)&image_mem_obj_);
-  ret = clSetKernelArg(kernel_, 2, sizeof(int), (void *)&N);
+  ret = clSetKernelArg(kernel_, 2, sizeof(int), (void *)&Volume_Size);
+  ret = clSetKernelArg(kernel_, 3, sizeof(float), (void *)&d_min);
+  ret = clSetKernelArg(kernel_, 4, sizeof(float), (void *)&d_max);
 
   // Execute the OpenCL kernel on the list
   size_t localWorkSize[] = {16, 16};
@@ -218,20 +227,22 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
           
   clFinish(command_queue_);
 
-  int i = 0;
+  float* march = (float*) malloc(volumesize/2*3*15 * sizeof(float));
+
+  /*int i = 0;
   for(int x = 0; x < Volume_Size; ++x)
   {
     for(int y = 0; y < Volume_Size; ++y)
     {
-      /*for(int z = 0; z < Volume_Size; ++z)
-      {*/
+      for(int z = 0; z < Volume_Size; ++z)
+      {
         std::cout << volume[i++] << " ";
         std::cout << volume[i++] << " - ";
-      /*}*/
-      //std::cout << std::endl;
+      }
+      std::cout << std::endl;
     }
     std::cout << std::endl;
-  }
+  }*/
   
 }
 
