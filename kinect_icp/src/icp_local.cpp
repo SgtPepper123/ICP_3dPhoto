@@ -380,7 +380,7 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
     }
   }
 
-  if (count < 18)
+  if (count < 8)
   {
     return false;
   }
