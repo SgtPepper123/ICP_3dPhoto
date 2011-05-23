@@ -313,7 +313,9 @@ __constant int triTable[256][16] =
 {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}};
 
 typedef struct tag_vertex {
-	float x, y, z;
+	float x;
+	float y; 
+	float z;
 	//float normal_x, normal_y, normal_z;
 }vertex;
 
@@ -368,7 +370,7 @@ __kernel void cube(__global float *Volume, __global float* VertexList, int N)
 
 			float step = 1.f/(float)N;
 			
-			vertex vertieces[2] = {
+			vertex vertieces[8] = {
 			{fx,fy,fz}
 			,{fx+step,fy,fz}
 			,{fx+step,fy,fz+step}
@@ -381,6 +383,8 @@ __kernel void cube(__global float *Volume, __global float* VertexList, int N)
 			
 			int cubeindex = ((int)(v0 > 0) << 0) | ((int)(v1 > 0) << 1) | ((int)(v2 > 0) << 2) | ((int)(v3 > 0) << 3) | ((int)(v4 > 0) << 4) | ((int)(v5 > 0) << 5) | ((int)(v6 > 0) << 6) | ((int)(v7 > 0) << 7);
       
+      int i = 0;
+      int index = Index(ix,iy,iz,N)/2*45;
       int eTable = edgeTable[cubeindex];
       if(eTable != 0 && eTable != 255)
       {
@@ -399,8 +403,6 @@ __kernel void cube(__global float *Volume, __global float* VertexList, int N)
         vertlist[10] = interpolate(vertieces[2],vertieces[6],v2,v6);
         vertlist[11] = interpolate(vertieces[3],vertieces[7],v3,v7);
 
-        int index = Index(ix,iy,iz,N)*18;
-        int i = 0;
         int tableIndex = triTable[cubeindex][0];
         do{
           vertex v = vertlist[tableIndex];
@@ -410,14 +412,12 @@ __kernel void cube(__global float *Volume, __global float* VertexList, int N)
           ++i;
           tableIndex = triTable[cubeindex][i];
         }while(tableIndex != -1);
-        for(;i < 15; ++i)
-        {
-          VertexList[index+i*3] = 0;
-          VertexList[index+i*3+1] = 0;
-          VertexList[index+i*3+2] = 0;
-        }
       }
-      
+      for(;i < 15; ++i)
+      {
+        VertexList[index+i*3] = -1.f;
+        VertexList[index+i*3+1] = -1.f;
+        VertexList[index+i*3+2] = -1.f;
+      }
    }
-
 }

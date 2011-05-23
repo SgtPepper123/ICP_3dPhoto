@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <fstream>
 
 using namespace kinect_icp;
 
@@ -247,12 +248,44 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   ret = clEnqueueNDRangeKernel(command_queue_, kernelMarching_, 3, NULL, 
           globalWorkSize3D, localWorkSize3D, 0, NULL, NULL);
 
-  clFinish(command_queue_);
   float* march = (float*) malloc(volumesize/2*3*15 * sizeof(float));
 
-  ret = clEnqueueReadBuffer(command_queue_, volume_mem_obj_, CL_TRUE, 0, 
-          volumesize * sizeof(float), volume, 0, NULL, NULL);
+  ret = clEnqueueReadBuffer(command_queue_, march_mem_obj_, CL_TRUE, 0, 
+          volumesize * sizeof(float)/2*45, march, 0, NULL, NULL);
           
+  clFinish(command_queue_);
+  
+  int count;
+  std::vector<Vertex> vertieces;
+  for(int i = 0; i < volumesize/2; ++i )
+  {
+    Vertex v;
+    for(int j = 0; j < 15; ++j)
+    {
+      v.x = march[i*45+j*3];
+      v.y = march[i*45+j*3+1];
+      v.z = march[i*45+j*3+2];
+      if(v.x > -0.1f && v.y > -0.1f && v.z > -0.1f)
+      {
+        vertieces.push_back(v);
+      }
+      else
+      {
+        break;
+      }
+    }
+  }
+  std::ofstream File("test.off");
+  File << "OFF" << std::endl;
+  File << vertieces.size() << " " <<vertieces.size()/3 << " " << 0 << std::endl;
+  for(std::vector<Vertex>::iterator it = vertieces.begin(); it != vertieces.end(); ++it)
+  {
+    File << it->x << " " << it->y << " " << it->z << std::endl;
+  }
+  for(int i = 0; i < vertieces.size()/3; ++i)
+  {
+    File << 3 << " " << i*3 << " " << i*3+1 << " " << i*3+2 << std::endl;
+  }
   /*int i = 0;
   for(int x = 0; x < Volume_Size; ++x)
   {
