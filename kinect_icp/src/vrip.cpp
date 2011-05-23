@@ -93,8 +93,8 @@ const float d_min = -d_max;
 #define CHECK(value) if (value != 0) {std::cerr << "An Error occurred at " << __FILE__ << ":" << __LINE__ << std::endl; exit(1);}
 
 Vrip::Vrip()
-: imageSize_(Volume_Size*Volume_Size*4)
-, volumeSize_(Volume_Size*Volume_Size*Volume_Size)
+  : imageSize_(Volume_Size*Volume_Size * 4)
+  , volumeSize_(Volume_Size*Volume_Size*Volume_Size)
 {
   // Get platform and device information
   cl_platform_id platform_id = NULL;
@@ -183,7 +183,7 @@ void Vrip::loadKernel(const char* filename, int num_kernels, cl_kernel kernels[]
 
   std::cout << buffer << std::endl;
 
-  for (int i=0; i<num_kernels; i++)
+  for (int i = 0; i < num_kernels; i++)
   {
     // Create the OpenCL kernel
     kernels[i] = clCreateKernel(program, kernel_names[i], &ret);
@@ -285,7 +285,7 @@ void Vrip::marchingCubes()
 
   std::cout << "pre Marching cubes finished" << std::endl;
 
-  int memoryToAllocate = preFixSum(march_mem_obj_, march_mem_obj_, 16*16);
+  int memoryToAllocate = preFixSum(&march_mem_obj_, &march_mem_obj_, 16 * 16);
 
   std::cout << "Marching cubes started" << std::endl;
 
@@ -316,15 +316,15 @@ void Vrip::marchingCubes()
   std::ofstream File("test.off");
   File << "OFF" << std::endl;
 
-  memoryToAllocate /= 3;//3 indices per vertex
+  memoryToAllocate /= 3; //3 indices per vertex
   File << memoryToAllocate << " " << memoryToAllocate / 3 << " " << 0 << std::endl;
 
   for (int i = 0; i < memoryToAllocate; ++i)
   {
-    File << hostOut[3*i] << " " << hostOut[3*i+1] << " " << hostOut[3*i+2] << std::endl;
+    File << hostOut[3 * i] << " " << hostOut[3 * i + 1] << " " << hostOut[3 * i + 2] << std::endl;
   }
 
-  memoryToAllocate /= 3;//3 vertices per face
+  memoryToAllocate /= 3; //3 vertices per face
   for (int i = 0; i < memoryToAllocate; ++i)
   {
     File << 3 << " " << i * 3 << " " << i * 3 + 1 << " " << i * 3 + 2 << std::endl;
@@ -337,565 +337,265 @@ void Vrip::marchingCubes()
 
 int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int length)
 {
-  const int blockSize = 1024;
 
-    cl_uint pass;
+  cl_uint pass;
 
-    /* Calculate number of passes required */
-    float t = log((float)length) / log((float)blockSize);
-    pass = (cl_uint)t;
+  /* Calculate number of passes required */
+  float t = log((float) length) / log((float) blockSize_);
+  pass = (cl_uint) t;
 
-    // If t is equal to pass
-    if(fabs(t - (float)pass) < 1e-7)
-    {
-        pass--;
-    }
+  // If t is equal to pass
+  if (fabs(t - (float) pass) < 1e-7)
+  {
+    pass--;
+  }
 
-    cl_mem              *outputBuffer;          /**< Array of output buffers */
-    cl_mem              *blockSumBuffer;        /**< Array of block sum buffers */
-    cl_int ret;
-    cl_mem tempBuffer;
+  cl_mem *outputBuffer; /**< Array of output buffers */
+  cl_mem *blockSumBuffer; /**< Array of block sum buffers */
+  cl_int ret;
+  cl_mem tempBuffer;
 
-    /* Allocate output buffers */
-    outputBuffer = (cl_mem*)malloc(pass * sizeof(cl_mem));
+  /* Allocate output buffers */
+  outputBuffer = (cl_mem*) malloc(pass * sizeof (cl_mem));
 
-    for(int i = 0; i < (int)pass; i++)
-    {
-        int size = (int)(length / pow((float)blockSize,(float)i));
-        outputBuffer[i] = clCreateBuffer(
-            context_,
-            CL_MEM_READ_WRITE,
-            sizeof(cl_float) * size,
-            0,
-            &ret);
-
-        CHECK(ret);
-    }
-
-    /* Allocate blockSumBuffers */
-    blockSumBuffer = (cl_mem*)malloc(pass * sizeof(cl_mem));
-
-    for(int i = 0; i < (int)pass; i++)
-    {
-        int size = (int)(length / pow((float)blockSize,(float)(i + 1)));
-        blockSumBuffer[i] = clCreateBuffer(
-            context_,
-            CL_MEM_READ_WRITE,
-            sizeof(cl_float) * size,
-            0,
-            &ret);
-
-        CHECK(ret);
-    }
-
-    /* Create a tempBuffer on device */
-    int tempLength = (int)(length / pow((float)blockSize, (float)pass));
-
-    tempBuffer = clCreateBuffer(context_,
-        CL_MEM_READ_WRITE,
-        sizeof(cl_float) * tempLength,
-        0,
-        &ret);
-    CHECK(ret);
-
-
- int
-Vrip::bScan(cl_uint len,
-                       cl_mem *inputBuffer,
-                       cl_mem *outputBuffer,
-                       cl_mem *blockSumBuffer)
-
-
-        /* set the block size*/
-    size_t globalThreads[1]= {len / 2};
-    size_t localThreads[1] = {blockSize / 2};
-
-    /* Set appropriate arguments to the kernel */
-    /* 1st argument to the kernel - outputBuffer */
-    ret = clSetKernelArg(
-        scanLargeArrays_,
-        0,
-        sizeof(cl_mem),
-        (void *)outputBuffer);
-    CHECK(ret);
-
-    /* 2nd argument to the kernel - inputBuffer */
-    ret = clSetKernelArg(
-        scanLargeArrays_,
-        1,
-        sizeof(cl_mem),
-        (void *)inputBuffer);
-    CHECK(ret);
-
-    /* 3rd argument to the kernel - local memory */
-    ret = clSetKernelArg(
-        scanLargeArrays_,
-        2,
-        blockSize * sizeof(cl_float),
-        NULL);
-    CHECK(ret);
-
-
-    /* 4th argument to the kernel - block_size  */
-    ret = clSetKernelArg(
-        scanLargeArrays_,
-        3,
-        sizeof(cl_int),
-        &blockSize);
-    CHECK(ret);
-
-    /* 5th argument to the kernel - length  */
-    ret = clSetKernelArg(
-        scanLargeArrays_,
-        4,
-        sizeof(cl_int),
-        &length);
-    CHECK(ret);
-
-    /* 6th argument to the kernel - sum of blocks  */
-    ret = clSetKernelArg(
-        scanLargeArrays_,
-        5,
-        sizeof(cl_mem),
-        blockSumBuffer);
-    CHECK(ret);
-
-// TODO maybe check if sufficient local memory
-
-
-    cl_event event;
-        /* Enqueue a kernel run call.*/
-    ret = clEnqueueNDRangeKernel(
-        command_queue_,
-        scanLargeArrays_,
-        1,
-        NULL,
-        globalThreads,
-        localThreads,
-        0,
-        NULL,
-        &event);
+  for (int i = 0; i < (int) pass; i++)
+  {
+    int size = (int) (length / pow((float) blockSize_, (float) i));
+    outputBuffer[i] = clCreateBuffer(
+      context_,
+      CL_MEM_READ_WRITE,
+      sizeof (cl_float) * size,
+      0,
+      &ret);
 
     CHECK(ret);
+  }
 
+  /* Allocate blockSumBuffers */
+  blockSumBuffer = (cl_mem*) malloc(pass * sizeof (cl_mem));
 
-    /* wait for the kernel call to finish execution */
-    ret = clWaitForEvents(1, &event);
+  for (int i = 0; i < (int) pass; i++)
+  {
+    int size = (int) (length / pow((float) blockSize_, (float) (i + 1)));
+    blockSumBuffer[i] = clCreateBuffer(
+      context_,
+      CL_MEM_READ_WRITE,
+      sizeof (cl_float) * size,
+      0,
+      &ret);
+
     CHECK(ret);
+  }
 
+  /* Create a tempBuffer on device */
+  int tempLength = (int) (length / pow((float) blockSize_, (float) pass));
 
-  return 0;
+  tempBuffer = clCreateBuffer(context_,
+    CL_MEM_READ_WRITE,
+    sizeof (cl_float) * tempLength,
+    0,
+    &ret);
+  CHECK(ret);
+
+  /* Do block-wise sum */
+
+  bScan(length, &inputBuffer, &outputBuffer[0], &blockSumBuffer[0]);
+
+  for (int i = 1; i < (int) pass; i++)
+  {
+    bScan((cl_uint) (length / pow((float) blockSize_, (float) i)),
+      &blockSumBuffer[i - 1],
+      &outputBuffer[i],
+      &blockSumBuffer[i]);
+  }
+
+  int tempLength = (int) (length / pow((float) blockSize_, (float) pass));
+
+  /* Do scan to tempBuffer */
+  pScan(tempLength, &blockSumBuffer[pass - 1], &tempBuffer);
+
+  /* Do block-addition on outputBuffers */
+  bAddition((cl_uint) (length / pow((float) blockSize_, (float) (pass - 1))),
+      &tempBuffer, &outputBuffer[pass - 1]);
+
+  for (int i = pass - 1; i > 0; i--)
+  {
+    bAddition((cl_uint) (length / pow((float) blockSize_, (float) (i - 1))),
+        &outputBuffer[i], &outputBuffer[i - 1]);
+  }
+
+  clFinish(command_queue_);
 }
 
-int
-ScanLargeArrays::pScan(cl_uint len,
-                       cl_mem *inputBuffer,
-                       cl_mem *outputBuffer)
+void Vrip::bScan(cl_uint len,
+  cl_mem *inputBuffer,
+  cl_mem *outputBuffer,
+  cl_mem * blockSumBuffer)
 {
-    cl_int status;
-    cl_event events[2];
+  /* set the block size*/
+  size_t globalThreads[1] = {len / 2};
+  size_t localThreads[1] = {blockSize_ / 2};
 
-    size_t globalThreads[1]= {len/2};
-    size_t localThreads[1] = {len/2};
+  cl_int ret;
 
-    status =  clGetKernelWorkGroupInfo(
-        pScanKernel,
-        devices[deviceId],
-        CL_KERNEL_LOCAL_MEM_SIZE,
-        sizeof(cl_ulong),
-        &usedLocalMemory,
-        NULL);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clGetKernelWorkGroupInfo failed.(usedLocalMemory)"))
-        return SDK_FAILURE;
+  /* Set appropriate arguments to the kernel */
+  /* 1st argument to the kernel - outputBuffer */
+  ret = clSetKernelArg(
+    scanLargeArrays_,
+    0,
+    sizeof (cl_mem),
+    (void *) outputBuffer);
+  CHECK(ret);
 
-    if(usedLocalMemory > totalLocalMemory)
-    {
-        std::cout << "Unsupported: Insufficient local memory on device."
-            << std::endl;
-        return SDK_SUCCESS;
-    }
+  /* 2nd argument to the kernel - inputBuffer */
+  ret = clSetKernelArg(
+    scanLargeArrays_,
+    1,
+    sizeof (cl_mem),
+    (void *) inputBuffer);
+  CHECK(ret);
 
-    if(localThreads[0] > maxWorkItemSizes[0] ||
-        localThreads[0] > maxWorkGroupSize)
-    {
-        std::cout << "Unsupported: Device does not support"
-            "requested number of work items." << std::endl;
-        return SDK_SUCCESS;
-    }
+  /* 3rd argument to the kernel - local memory */
+  ret = clSetKernelArg(
+    scanLargeArrays_,
+    2,
+    blockSize_ * sizeof (cl_float),
+    NULL);
+  CHECK(ret);
 
 
-    /* Set appropriate arguments to the kernel */
-    /* 1st argument to the kernel - outputBuffer */
-    status = clSetKernelArg(
-        pScanKernel,
-        0,
-        sizeof(cl_mem),
-        (void *)outputBuffer);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clSetKernelArg failed. (outputBuffer)"))
-        return SDK_FAILURE;
+  /* 4th argument to the kernel - block_size  */
+  ret = clSetKernelArg(
+    scanLargeArrays_,
+    3,
+    sizeof (cl_int),
+    &blockSize_);
+  CHECK(ret);
 
-    /* 2nd argument to the kernel - inputBuffer */
-    status = clSetKernelArg(
-        pScanKernel,
-        1,
-        sizeof(cl_mem),
-        (void *)inputBuffer);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clSetKernelArg failed. (inputBuffer)"))
-        return SDK_FAILURE;
+  /* 5th argument to the kernel - length  */
+  ret = clSetKernelArg(
+    scanLargeArrays_,
+    4,
+    sizeof (cl_int),
+    &len);
+  CHECK(ret);
 
-    /* 3rd argument to the kernel - local memory */
-    status = clSetKernelArg(
-        pScanKernel,
-        2,
-        len * sizeof(cl_float),
-        NULL);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clSetKernelArg failed. (local)"))
-        return SDK_FAILURE;
+  /* 6th argument to the kernel - sum of blocks  */
+  ret = clSetKernelArg(
+    scanLargeArrays_,
+    5,
+    sizeof (cl_mem),
+    blockSumBuffer);
+  CHECK(ret);
 
-    /* 4th argument to the kernel - length */
-    status = clSetKernelArg(
-        pScanKernel,
-        3,
-        sizeof(cl_int),
-        (void*)&len);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clSetKernelArg failed. (length)"))
-        return SDK_FAILURE;
+  // TODO maybe check if sufficient local memory
 
-    /* Enqueue a kernel run call.*/
-    status = clEnqueueNDRangeKernel(
-        commandQueue,
-        pScanKernel,
-        1,
-        NULL,
-        globalThreads,
-        localThreads,
-        0,
-        NULL,
-        &events[0]);
 
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clEnqueueNDRangeKernel failed."))
-        return SDK_FAILURE;
-
-    /* wait for the kernel call to finish execution */
-    status = clWaitForEvents(1, &events[0]);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clWaitForEvents failed."))
-        return SDK_FAILURE;
-
-    return SDK_SUCCESS;
+  /* Enqueue a kernel run call.*/
+  CHECK(clEnqueueNDRangeKernel(
+    command_queue_,
+    scanLargeArrays_,
+    1,
+    NULL,
+    globalThreads,
+    localThreads,
+    0,
+    NULL,
+    NULL));
 }
 
-
-
-int
-ScanLargeArrays::bAddition(cl_uint len,
-                           cl_mem *inputBuffer,
-                           cl_mem *outputBuffer)
+void Vrip::pScan(cl_uint len,
+  cl_mem *inputBuffer,
+  cl_mem * outputBuffer)
 {
-    cl_int   status;
-    cl_event events[2];
+  cl_int ret;
 
-    /* set the block size*/
-    size_t globalThreads[1]= {len};
-    size_t localThreads[1] = {blockSize};
+  size_t globalThreads[1] = {len / 2};
+  size_t localThreads[1] = {len / 2};
 
-    if(localThreads[0] > maxWorkItemSizes[0] ||
-       localThreads[0] > maxWorkGroupSize)
-    {
-        std::cout<<"Unsupported: Device does not support"
-            "requested number of work items.";
+  /* Set appropriate arguments to the kernel */
+  /* 1st argument to the kernel - outputBuffer */
+  ret = clSetKernelArg(
+    prefixSum_,
+    0,
+    sizeof (cl_mem),
+    (void *) outputBuffer);
+  CHECK(ret);
 
-        return SDK_FAILURE;
-    }
+  /* 2nd argument to the kernel - inputBuffer */
+  ret = clSetKernelArg(
+    prefixSum_,
+    1,
+    sizeof (cl_mem),
+    (void *) inputBuffer);
+  CHECK(ret);
 
-    /*** Set appropriate arguments to the kernel ***/
-    /* 1st argument to the kernel - inputBuffer */
-    status = clSetKernelArg(
-        bAddKernel,
-        0,
-        sizeof(cl_mem),
-        (void*)inputBuffer);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clSetKernelArg failed. (outputBuffer)"))
-        return SDK_FAILURE;
+  /* 3rd argument to the kernel - local memory */
+  ret = clSetKernelArg(
+    prefixSum_,
+    2,
+    len * sizeof (cl_float),
+    NULL);
+  CHECK(ret);
 
-    /* 2nd argument to the kernel - outputBuffer */
-    status = clSetKernelArg(
-        bAddKernel,
-        1,
-        sizeof(cl_mem),
-        (void *)outputBuffer);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clSetKernelArg failed. (inputBuffer)"))
-        return SDK_FAILURE;
+  /* 4th argument to the kernel - length */
+  ret = clSetKernelArg(
+    prefixSum_,
+    3,
+    sizeof (cl_int),
+    (void*) &len);
+  CHECK(ret);
 
-
-    status = clGetKernelWorkGroupInfo(bAddKernel,
-        devices[deviceId],
-        CL_KERNEL_LOCAL_MEM_SIZE,
-        sizeof(cl_ulong),
-        &usedLocalMemory,
-        NULL);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clGetKernelWorkGroupInfo failed.(usedLocalMemory)"))
-        return SDK_FAILURE;
-
-
-    if(usedLocalMemory > totalLocalMemory)
-    {
-        std::cout << "Unsupported: Insufficient local memory on device."
-            << std::endl;
-        return SDK_FAILURE;
-    }
-
-    /* Enqueue a kernel run call.*/
-    status = clEnqueueNDRangeKernel(
-        commandQueue,
-        bAddKernel,
-        1,
-        NULL,
-        globalThreads,
-        localThreads,
-        0,
-        NULL,
-        &events[0]);
-
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clEnqueueNDRangeKernel failed."))
-        return SDK_FAILURE;
-
-
-    /* wait for the kernel call to finish execution */
-    status = clWaitForEvents(1, &events[0]);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clWaitForEvents failed."))
-        return SDK_FAILURE;
-
-    return SDK_SUCCESS;
+  /* Enqueue a kernel run call.*/
+  CHECK(clEnqueueNDRangeKernel(
+    command_queue_,
+    prefixSum_,
+    1,
+    NULL,
+    globalThreads,
+    localThreads,
+    0,
+    NULL,
+    NULL));
 }
 
-
-int
-ScanLargeArrays::runCLKernels(void)
+void Vrip::bAddition(cl_uint len,
+  cl_mem *inputBuffer,
+  cl_mem *outputBuffer)
 {
-    /* Do block-wise sum */
-    if(bScan(length, &inputBuffer, &outputBuffer[0], &blockSumBuffer[0]))
-        return SDK_FAILURE;
+  cl_int ret;
 
-    for(int i = 1; i < (int)pass; i++)
-    {
-        if(bScan((cl_uint)(length / pow((float)blockSize, (float)i)),
-            &blockSumBuffer[i - 1],
-            &outputBuffer[i],
-            &blockSumBuffer[i]))
-        {
-            return SDK_FAILURE;
-        }
-    }
+  /* set the block size*/
+  size_t globalThreads[1] = {len};
+  size_t localThreads[1] = {blockSize_};
 
-    int tempLength = (int)(length / pow((float)blockSize, (float)pass));
+  /*** Set appropriate arguments to the kernel ***/
+  /* 1st argument to the kernel - inputBuffer */
+  ret = clSetKernelArg(
+    blockAddition_,
+    0,
+    sizeof (cl_mem),
+    (void*) inputBuffer);
+  CHECK(ret);
 
-    /* Do scan to tempBuffer */
-    if(pScan(tempLength, &blockSumBuffer[pass - 1], &tempBuffer))
-        return SDK_FAILURE;
-
-    /* Do block-addition on outputBuffers */
-    if(bAddition((cl_uint)(length / pow((float)blockSize, (float)(pass - 1))),
-        &tempBuffer, &outputBuffer[pass - 1]))
-    {
-        return SDK_FAILURE;
-    }
-
-    for(int i = pass - 1; i > 0; i--)
-    {
-        if(bAddition((cl_uint)(length / pow((float)blockSize, (float)(i - 1))),
-            &outputBuffer[i], &outputBuffer[i - 1]))
-        {
-            return SDK_FAILURE;
-        }
-    }
-
-    /* Read the final result */
-    status = clEnqueueReadBuffer(commandQueue,
-        outputBuffer[0],
-        1,
-        0,
-        length * sizeof(cl_float),
-        output,
-        0,
-        0,
-        &events[0]);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clReadBuffer failed. (outputBuffer[0])"))
-        return SDK_FAILURE;
-
-    clFinish(commandQueue);
-    return SDK_SUCCESS;
-}
+  /* 2nd argument to the kernel - outputBuffer */
+  ret = clSetKernelArg(
+    blockAddition_,
+    1,
+    sizeof (cl_mem),
+    (void *) outputBuffer);
+  CHECK(ret);
 
 
-int
-ScanLargeArrays::cleanup()
-{
-    /* Releases OpenCL resources (Context, Memory etc.) */
-    cl_int status;
-
-    status = clReleaseKernel(pScanKernel);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clReleaseKernel failed. (pScanKernel)"))
-        return SDK_FAILURE;
-
-    status = clReleaseKernel(bScanKernel);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clReleaseKernel failed. (bScanKernel)"))
-        return SDK_FAILURE;
-
-    status = clReleaseKernel(bAddKernel);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clReleaseKernel failed. (bAddKernel)"))
-        return SDK_FAILURE;
-
-    status = clReleaseProgram(program);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clReleaseProgram failed."))
-        return SDK_FAILURE;
-
-    status = clReleaseMemObject(inputBuffer);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clReleaseMemObject failed.(inputBuffer)"))
-        return SDK_FAILURE;
-
-    status = clReleaseMemObject(tempBuffer);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clReleaseMemObject failed. (tempBuffer)"))
-        return SDK_FAILURE;
-
-    for(int i = 0; i < (int)pass; i++)
-    {
-        status = clReleaseMemObject(outputBuffer[i]);
-        if(!sampleCommon->checkVal(
-            status,
-            CL_SUCCESS,
-            "clReleaseMemObject failed. (outputBuffer)"))
-            return SDK_FAILURE;
-
-        status = clReleaseMemObject(blockSumBuffer[i]);
-        if(!sampleCommon->checkVal(
-            status,
-            CL_SUCCESS,
-            "clReleaseMemObject failed. (blockSumBuffer)"))
-            return SDK_FAILURE;
-
-    }
-
-    if(outputBuffer)
-        free(outputBuffer);
-
-    if(blockSumBuffer)
-        free(blockSumBuffer);
-
-    status = clReleaseCommandQueue(commandQueue);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clReleaseCommandQueue failed."))
-        return SDK_FAILURE;
-
-    status = clReleaseContext(context);
-    if(!sampleCommon->checkVal(
-        status,
-        CL_SUCCESS,
-        "clReleaseContext failed."))
-        return SDK_FAILURE;
-
-    /* release program resources (input memory etc.) */
-    if(input)
-        free(input);
-
-    if(output)
-        free(output);
-
-    if(verificationOutput)
-        free(verificationOutput);
-
-    if(devices)
-        free(devices);
-
-    if(maxWorkItemSizes)
-        free(maxWorkItemSizes);
-
-    return SDK_SUCCESS;
-}
-
-int
-main(int argc, char * argv[])
-{
-    ScanLargeArrays clScanLargeArrays("OpenCL ScanLargeArrays");
-
-    clScanLargeArrays.initialize();
-    if(!clScanLargeArrays.parseCommandLine(argc, argv))
-        return SDK_FAILURE;
-
-    if(clScanLargeArrays.isDumpBinaryEnabled())
-    {
-        return clScanLargeArrays.genBinaryImage();
-    }
-    else
-    {
-        if(clScanLargeArrays.setup() != SDK_SUCCESS)
-            return SDK_FAILURE;
-        if(clScanLargeArrays.run() != SDK_SUCCESS)
-            return SDK_FAILURE;
-        if(clScanLargeArrays.verifyResults() != SDK_SUCCESS)
-            return SDK_FAILURE;
-        if(clScanLargeArrays.cleanup() != SDK_SUCCESS)
-            return SDK_FAILURE;
-        clScanLargeArrays.printStats();
-    }
-
-    return SDK_SUCCESS;
+  /* Enqueue a kernel run call.*/
+  CHECK(clEnqueueNDRangeKernel(
+    command_queue_,
+    blockAddition_,
+    1,
+    NULL,
+    globalThreads,
+    localThreads,
+    0,
+    NULL,
+    NULL));
 }
