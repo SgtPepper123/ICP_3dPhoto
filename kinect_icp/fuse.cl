@@ -18,7 +18,7 @@ __kernel void fuse(__global float *Volume, __global float *Image, int N, float d
 
 int Index(int x, int y, int z, int N)
 {
-  return 2*(x + y*N + z*N*N);
+  return (x + y*N + z*N*N);
 }
 
 __constant int triTable[256][16] =
@@ -313,7 +313,7 @@ vertex interpolate(vertex p1, vertex p2, float valp1, float valp2)
     return p;
 }
 
-__kernel void precube(__global float *Volume, __global int memoryNeeded, int N)
+__kernel void precube(__global float *Volume, __global int* memoryNeeded, int N)
 {
   // Get the index of the current element
   int ix = get_global_id(0);
@@ -322,97 +322,91 @@ __kernel void precube(__global float *Volume, __global int memoryNeeded, int N)
 
   if(ix >= 0 && iy >= 0 && iz >= 0 && ix < N-1 && iy < N-1 && iz < N-1)
   {
-    float v0 = Volume[Index(ix,iy,iz,N)];
-    float v1 = Volume[Index(ix+1,iy,iz,N)];
-    float v2 = Volume[Index(ix+1,iy,iz+1,N)];
-    float v3 = Volume[Index(ix,iy,iz+1,N)];
-    float v4 = Volume[Index(ix,iy+1,iz,N)];
-    float v5 = Volume[Index(ix+1,iy+1,iz,N)];
-    float v6 = Volume[Index(ix+1,iy+1,iz+1,N)];
-    float v7 = Volume[Index(ix,iy+1,iz+1,N)];
+    float v0 = Volume[Index(ix,iy,iz,N)*2];
+    float v1 = Volume[Index(ix+1,iy,iz,N)*2];
+    float v2 = Volume[Index(ix+1,iy,iz+1,N)*2];
+    float v3 = Volume[Index(ix,iy,iz+1,N)*2];
+    float v4 = Volume[Index(ix,iy+1,iz,N)*2];
+    float v5 = Volume[Index(ix+1,iy+1,iz,N)*2];
+    float v6 = Volume[Index(ix+1,iy+1,iz+1,N)*2];
+    float v7 = Volume[Index(ix,iy+1,iz+1,N)*2];
 
     int cubeindex = ((int)(v0 > 0) << 0) | ((int)(v1 > 0) << 1) | ((int)(v2 > 0) << 2) | ((int)(v3 > 0) << 3) | ((int)(v4 > 0) << 4) | ((int)(v5 > 0) << 5) | ((int)(v6 > 0) << 6) | ((int)(v7 > 0) << 7);
 
-    memoryNeeded[Index(ix,iy,iz,N)] = triTable[cubeindex][15];
- }
- else
- {
+    memoryNeeded[Index(ix,iy,iz,N)] = triTable[cubeindex][15]*3;
+  }
+  else
+  {
     memoryNeeded[Index(ix,iy,iz,N)] = 0;
- }
+  }
 }
 
-__kernel void cube(__global float *Volume, __global float* VertexList, int N)
+__kernel void cube(__global float *Volume, __global int* memoryNeeded, __global float* VertexList, int N)
 {
-    // Get the index of the current element
-    int ix = get_global_id(0);
-    int iy = get_global_id(1);
-    int iz = get_global_id(2);
+  // Get the index of the current element
+  int ix = get_global_id(0);
+  int iy = get_global_id(1);
+  int iz = get_global_id(2);
 
-    int i = 0;
-    int index = Index(ix,iy,iz,N)/2*45;
-    if(ix >= 0 && iy >= 0 && iz >= 0 && ix < N-1 && iy < N-1 && iz < N-1)
-    {
-			float v0 = Volume[Index(ix,iy,iz,N)];
-			float v1 = Volume[Index(ix+1,iy,iz,N)];
-			float v2 = Volume[Index(ix+1,iy,iz+1,N)];
-			float v3 = Volume[Index(ix,iy,iz+1,N)];
-			float v4 = Volume[Index(ix,iy+1,iz,N)];
-			float v5 = Volume[Index(ix+1,iy+1,iz,N)];
-			float v6 = Volume[Index(ix+1,iy+1,iz+1,N)];
-			float v7 = Volume[Index(ix,iy+1,iz+1,N)];
-
-			float fx = (float)ix/(float)N;
-			float fy = (float)iy/(float)N;
-			float fz = (float)iz/(float)N;
-
-			float step = 1.f/(float)N;
-
-			vertex vertieces[8] = {
-			{fx,fy,fz}
-			,{fx+step,fy,fz}
-			,{fx+step,fy,fz+step}
-			,{fx,fy,fz+step}
-			,{fx,fy+step,fz}
-			,{fx+step,fy+step, fz}
-			,{fx+step,fy+step,fz+step}
-			,{fx,fy+step,fz+step}
-			};
-
-			int cubeindex = ((int)(v0 > 0) << 0) | ((int)(v1 > 0) << 1) | ((int)(v2 > 0) << 2) | ((int)(v3 > 0) << 3) | ((int)(v4 > 0) << 4) | ((int)(v5 > 0) << 5) | ((int)(v6 > 0) << 6) | ((int)(v7 > 0) << 7);
-
-      if(cubeindex != 0 && cubeindex != 255)
-      {
-        vertex vertlist[12];
-        // Find the vertices where the surface intersects the cube
-        vertlist[0] = interpolate(vertieces[0],vertieces[1],v0,v1);
-        vertlist[1] = interpolate(vertieces[1],vertieces[2],v1,v2);
-        vertlist[2] = interpolate(vertieces[2],vertieces[3],v2,v3);
-        vertlist[3] = interpolate(vertieces[3],vertieces[0],v3,v0);
-        vertlist[4] = interpolate(vertieces[4],vertieces[5],v4,v5);
-        vertlist[5] = interpolate(vertieces[5],vertieces[6],v5,v6);
-        vertlist[6] = interpolate(vertieces[6],vertieces[7],v6,v7);
-        vertlist[7] = interpolate(vertieces[7],vertieces[4],v7,v4);
-        vertlist[8] = interpolate(vertieces[0],vertieces[4],v0,v4);
-        vertlist[9] = interpolate(vertieces[1],vertieces[5],v1,v5);
-        vertlist[10] = interpolate(vertieces[2],vertieces[6],v2,v6);
-        vertlist[11] = interpolate(vertieces[3],vertieces[7],v3,v7);
-
-        //ToDo unroll
-        int tableIndex = triTable[cubeindex][0];
-        do{
-          vertex v = vertlist[tableIndex];
-          VertexList[index+i*3] = v.x;
-          VertexList[index+i*3+1] = v.y;
-          VertexList[index+i*3+2] = v.z;
-          ++i;
-          tableIndex = triTable[cubeindex][i];
-        }while(tableIndex != -1);
-      }
-   }
-  for(;i < 15; ++i)
+  if(ix < N-1 && iy < N-1 && iz < N-1)
   {
-    VertexList[index+i*3] = -1.f;
-    VertexList[index+i*3+1] = -1.f;
-    VertexList[index+i*3+2] = -1.f;
+    float v0 = Volume[Index(ix,iy,iz,N)*2];
+    float v1 = Volume[Index(ix+1,iy,iz,N)*2];
+    float v2 = Volume[Index(ix+1,iy,iz+1,N)*2];
+    float v3 = Volume[Index(ix,iy,iz+1,N)*2];
+    float v4 = Volume[Index(ix,iy+1,iz,N)*2];
+    float v5 = Volume[Index(ix+1,iy+1,iz,N)*2];
+    float v6 = Volume[Index(ix+1,iy+1,iz+1,N)*2];
+    float v7 = Volume[Index(ix,iy+1,iz+1,N)*2];
+
+    float fx = (float)ix/(float)N;
+    float fy = (float)iy/(float)N;
+    float fz = (float)iz/(float)N;
+
+    float step = 1.f/(float)N;
+
+    vertex vertieces[8] = {
+    {fx,fy,fz}
+    ,{fx+step,fy,fz}
+    ,{fx+step,fy,fz+step}
+    ,{fx,fy,fz+step}
+    ,{fx,fy+step,fz}
+    ,{fx+step,fy+step, fz}
+    ,{fx+step,fy+step,fz+step}
+    ,{fx,fy+step,fz+step}
+    };
+
+    int cubeindex = ((int)(v0 > 0) << 0) | ((int)(v1 > 0) << 1) | ((int)(v2 > 0) << 2) | ((int)(v3 > 0) << 3) | ((int)(v4 > 0) << 4) | ((int)(v5 > 0) << 5) | ((int)(v6 > 0) << 6) | ((int)(v7 > 0) << 7);
+
+    if(cubeindex != 0 && cubeindex != 255)
+    {
+      vertex vertlist[12];
+      // Find the vertices where the surface intersects the cube
+      vertlist[0] = interpolate(vertieces[0],vertieces[1],v0,v1);
+      vertlist[1] = interpolate(vertieces[1],vertieces[2],v1,v2);
+      vertlist[2] = interpolate(vertieces[2],vertieces[3],v2,v3);
+      vertlist[3] = interpolate(vertieces[3],vertieces[0],v3,v0);
+      vertlist[4] = interpolate(vertieces[4],vertieces[5],v4,v5);
+      vertlist[5] = interpolate(vertieces[5],vertieces[6],v5,v6);
+      vertlist[6] = interpolate(vertieces[6],vertieces[7],v6,v7);
+      vertlist[7] = interpolate(vertieces[7],vertieces[4],v7,v4);
+      vertlist[8] = interpolate(vertieces[0],vertieces[4],v0,v4);
+      vertlist[9] = interpolate(vertieces[1],vertieces[5],v1,v5);
+      vertlist[10] = interpolate(vertieces[2],vertieces[6],v2,v6);
+      vertlist[11] = interpolate(vertieces[3],vertieces[7],v3,v7);
+
+      //ToDo unroll
+      int index = memoryNeeded[Index(ix,iy,iz,N)];
+      int vertexCount = triTable[cubeindex][15]; 
+      int tableIndex = 0;
+      for(int i = 0; i < vertexCount; ++i)
+      {
+        tableIndex = triTable[cubeindex][i];
+        vertex v = vertlist[tableIndex];
+        VertexList[index+i*3] = v.x;
+        VertexList[index+i*3+1] = v.y;
+        VertexList[index+i*3+2] = v.z;
+      }
+    }
   }
 }
