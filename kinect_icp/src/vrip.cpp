@@ -10,6 +10,7 @@
 using namespace kinect_icp;
 
 #define MAX_SOURCE_SIZE (0x100000)
+#define BLOCK_SIZE = 1024
 
 #define SEP printf("-----------------------------------------------------------\n")
 
@@ -89,6 +90,7 @@ int device_stats(cl_device_id device_id)
 const int Volume_Size = 16;
 const float d_max = 0.05;
 const float d_min = -d_max;
+const int blockSize = 1024;
 
 #define CHECK(value) if (value != 0) {std::cerr << "An Error occurred at " << __FILE__ << ":" << __LINE__ << std::endl; exit(1);}
 
@@ -335,13 +337,13 @@ void Vrip::marchingCubes()
   free(hostOut);
 }
 
-int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int length)
+int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
 {
-
   cl_uint pass;
+  cl_uint length = input_length;
 
   /* Calculate number of passes required */
-  float t = log((float) length) / log((float) blockSize_);
+  float t = log((float) length) / log((float) blockSize);
   pass = (cl_uint) t;
 
   // If t is equal to pass
@@ -360,7 +362,7 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int length)
 
   for (int i = 0; i < (int) pass; i++)
   {
-    int size = (int) (length / pow((float) blockSize_, (float) i));
+    int size = (int) (length / pow((float) blockSize, (float) i));
     outputBuffer[i] = clCreateBuffer(
       context_,
       CL_MEM_READ_WRITE,
@@ -376,7 +378,7 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int length)
 
   for (int i = 0; i < (int) pass; i++)
   {
-    int size = (int) (length / pow((float) blockSize_, (float) (i + 1)));
+    int size = (int) (length / pow((float) blockSize, (float) (i + 1)));
     blockSumBuffer[i] = clCreateBuffer(
       context_,
       CL_MEM_READ_WRITE,
@@ -388,7 +390,7 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int length)
   }
 
   /* Create a tempBuffer on device */
-  int tempLength = (int) (length / pow((float) blockSize_, (float) pass));
+  int tempLength = (int) (length / pow((float) blockSize, (float) pass));
 
   tempBuffer = clCreateBuffer(context_,
     CL_MEM_READ_WRITE,
@@ -398,33 +400,34 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int length)
   CHECK(ret);
 
   /* Do block-wise sum */
-
-  bScan(length, &inputBuffer, &outputBuffer[0], &blockSumBuffer[0]);
+  bScan(length, inputBuffer, &outputBuffer[0], &blockSumBuffer[0]);
 
   for (int i = 1; i < (int) pass; i++)
   {
-    bScan((cl_uint) (length / pow((float) blockSize_, (float) i)),
+    bScan((cl_uint) (length / pow((float) blockSize, (float) i)),
       &blockSumBuffer[i - 1],
       &outputBuffer[i],
       &blockSumBuffer[i]);
   }
 
-  int tempLength = (int) (length / pow((float) blockSize_, (float) pass));
-
   /* Do scan to tempBuffer */
   pScan(tempLength, &blockSumBuffer[pass - 1], &tempBuffer);
 
   /* Do block-addition on outputBuffers */
-  bAddition((cl_uint) (length / pow((float) blockSize_, (float) (pass - 1))),
+  bAddition((cl_uint) (length / pow((float) blockSize, (float) (pass - 1))),
       &tempBuffer, &outputBuffer[pass - 1]);
 
   for (int i = pass - 1; i > 0; i--)
   {
-    bAddition((cl_uint) (length / pow((float) blockSize_, (float) (i - 1))),
+    bAddition((cl_uint) (length / pow((float) blockSize, (float) (i - 1))),
         &outputBuffer[i], &outputBuffer[i - 1]);
   }
 
   clFinish(command_queue_);
+
+  // TODO free everything!
+  // TODO return correct value
+  return -1;
 }
 
 void Vrip::bScan(cl_uint len,
@@ -434,7 +437,7 @@ void Vrip::bScan(cl_uint len,
 {
   /* set the block size*/
   size_t globalThreads[1] = {len / 2};
-  size_t localThreads[1] = {blockSize_ / 2};
+  size_t localThreads[1] = {blockSize / 2};
 
   cl_int ret;
 
@@ -459,17 +462,17 @@ void Vrip::bScan(cl_uint len,
   ret = clSetKernelArg(
     scanLargeArrays_,
     2,
-    blockSize_ * sizeof (cl_float),
+    blockSize * sizeof (cl_float),
     NULL);
   CHECK(ret);
 
 
-  /* 4th argument to the kernel - block_size  */
+  /* 4th argument to the kernel - blockSize  */
   ret = clSetKernelArg(
     scanLargeArrays_,
     3,
     sizeof (cl_int),
-    &blockSize_);
+    &blockSize);
   CHECK(ret);
 
   /* 5th argument to the kernel - length  */
@@ -567,7 +570,7 @@ void Vrip::bAddition(cl_uint len,
 
   /* set the block size*/
   size_t globalThreads[1] = {len};
-  size_t localThreads[1] = {blockSize_};
+  size_t localThreads[1] = {blockSize};
 
   /*** Set appropriate arguments to the kernel ***/
   /* 1st argument to the kernel - inputBuffer */

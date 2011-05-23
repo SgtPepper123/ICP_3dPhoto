@@ -19,23 +19,6 @@ public:
   void fuseCloud(const PCloud::ConstPtr& new_point_cloud);
 
   void marchingCubes();
-  int preFixSum(cl_mem *inputBuffer, cl_mem *output, int length);
-
-  void bScan(cl_uint len,
-    cl_mem *inputBuffer,
-    cl_mem *outputBuffer,
-    cl_mem *blockSumBuffer);
-
-  void pScan(cl_uint len,
-  cl_mem *inputBuffer,
-  cl_mem * outputBuffer);
-
-  void bAddition(cl_uint len,
-  cl_mem *inputBuffer,
-  cl_mem * outputBuffer);
-
-  void loadKernel(const char* filename, int num_kernels, cl_kernel kernels[],
-    const char* kernel_names[]);
 
   class Vertex
   {
@@ -59,12 +42,26 @@ private:
   cl_mem image_mem_obj_;
   cl_context context_;
 
+  void bScan(cl_uint len,
+    cl_mem *inputBuffer,
+    cl_mem *outputBuffer,
+    cl_mem *blockSumBuffer);
+
+  void pScan(cl_uint len,
+    cl_mem *inputBuffer,
+    cl_mem * outputBuffer);
+
+  void bAddition(cl_uint len,
+    cl_mem *inputBuffer,
+    cl_mem * outputBuffer);
+
+  int preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length);
+
+  void loadKernel(const char* filename, int num_kernels, cl_kernel kernels[],
+    const char* kernel_names[]);
+
   int imageSize_;
   int volumeSize_;
-
-
-  const int blockSize_ = 1024;
-
 };
 
 }
