@@ -407,7 +407,7 @@ __kernel void cube(__global float *Volume, __global float* VertexList, int N)
           VertexList[index+i*3] = v.x;
           VertexList[index+i*3+1] = v.y;
           VertexList[index+i*3+2] = v.z;
-          --i;
+          ++i;
           int tableIndex = triTable[cubeindex][i];
         }while(tableIndex != -1);
       }

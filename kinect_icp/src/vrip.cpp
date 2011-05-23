@@ -128,6 +128,11 @@ Vrip::Vrip()
           
   std::cout << ret << std::endl;
           
+  march_mem_obj_ = clCreateBuffer(context_, CL_MEM_WRITE_ONLY, 
+          volumesize/2*3*15 * sizeof(float), NULL, &ret);
+          
+  std::cout << ret << std::endl;
+
   image_mem_obj_ = clCreateBuffer(context_, CL_MEM_READ_ONLY, 
           Volume_Size * Volume_Size * sizeof(float) * 6, NULL, &ret);
 
@@ -165,6 +170,11 @@ Vrip::Vrip()
   // Create the OpenCL kernel
   kernel_ = clCreateKernel(program_, "fuse", &ret);
   std::cout << ret << std::endl;
+
+  // Create the OpenCL kernel
+  kernelMarching_ = clCreateKernel(program_, "cube", &ret);
+  std::cout << ret << std::endl;
+
 }
 
 Vrip::~Vrip()
@@ -227,8 +237,22 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
           
   clFinish(command_queue_);
 
+  // Set the arguments of the kernel
+  ret = clSetKernelArg(kernelMarching_, 0, sizeof(cl_mem), (void *)&volume_mem_obj_);
+  ret = clSetKernelArg(kernelMarching_, 1, sizeof(cl_mem), (void *)&march_mem_obj_);
+  ret = clSetKernelArg(kernelMarching_, 2, sizeof(int), (void *)&Volume_Size);
+
+  size_t localWorkSize3D[] = {16, 16, 1};
+  size_t globalWorkSize3D[] = {Volume_Size, Volume_Size, Volume_Size};
+  ret = clEnqueueNDRangeKernel(command_queue_, kernelMarching_, 3, NULL, 
+          globalWorkSize3D, localWorkSize3D, 0, NULL, NULL);
+
+  clFinish(command_queue_);
   float* march = (float*) malloc(volumesize/2*3*15 * sizeof(float));
 
+  ret = clEnqueueReadBuffer(command_queue_, volume_mem_obj_, CL_TRUE, 0, 
+          volumesize * sizeof(float), volume, 0, NULL, NULL);
+          
   /*int i = 0;
   for(int x = 0; x < Volume_Size; ++x)
   {
