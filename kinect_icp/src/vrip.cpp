@@ -12,7 +12,7 @@ using namespace kinect_icp;
 #define MAX_SOURCE_SIZE (0x100000)
 #define BLOCK_SIZE = 1024
 
-#define TEST_LEAKS
+//#define TEST_LEAKS
 
 #define CHECK(value) if (value != 0) {std::cerr << "An Error(" << value << ") occurred at " << __FILE__ << ":" << __LINE__ << std::endl; exit(1);}
 
