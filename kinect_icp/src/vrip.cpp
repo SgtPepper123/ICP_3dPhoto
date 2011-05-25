@@ -11,7 +11,8 @@ using namespace kinect_icp;
 
 #define MAX_SOURCE_SIZE (0x100000)
 #define BLOCK_SIZE = 1024
-#define TEST_LEAKS
+
+//#define TEST_LEAKS
 
 #define CHECK(value) if (value != 0) {std::cerr << "An Error(" << value << ") occurred at " << __FILE__ << ":" << __LINE__ << std::endl; exit(1);}
 
@@ -291,8 +292,7 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
     std::cout << std::endl;
   }*/
 
-  //marchingCubes();
-  testScan();
+  marchingCubes();
 }
 
 void Vrip::testScan()
@@ -551,7 +551,7 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
   CHECK(clFinish(command_queue_));
 
   CHECK(clReleaseMemObject(tempBuffer));
-  
+
   for (int i = 0; i < (int) pass; i++)
   {
     if (i != 0)
