@@ -179,14 +179,14 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
 
     BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud1_->points)
     {
-//      if (pcl::hasValidXYZ(pt))
-//      cout << pt.x << "," << pt.y << "," << pt.z << " => " << int(pt.x*100)
-//        << "," << int(pt.y*100) << "," << int(pt.z*100) << endl;
+      //      if (pcl::hasValidXYZ(pt))
+      //      cout << pt.x << "," << pt.y << "," << pt.z << " => " << int(pt.x*100)
+      //        << "," << int(pt.y*100) << "," << int(pt.z*100) << endl;
 
-    uint8_t first = pt.x * 100;
-    uint8_t second = pt.y * 100;
-    uint8_t third = pt.z * 100;
-    uint32_t hash_value = first + (second<<8) + (third<<16);
+      uint8_t first = pt.x * 100;
+      uint8_t second = pt.y * 100;
+      uint8_t third = pt.z * 100;
+      uint32_t hash_value = first + (second << 8) + (third << 16);
       if (pcl::hasValidXYZ(pt) && point_hash.find(hash_value) == point_hash.end())
       {
         outCloud_->push_back(pt);
@@ -242,7 +242,7 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
     uint8_t first = pt.x * 100;
     uint8_t second = pt.y * 100;
     uint8_t third = pt.z * 100;
-    uint32_t hash_value = first + (second<<8) + (third<<16);
+    uint32_t hash_value = first + (second << 8) + (third << 16);
     if (pcl::hasValidXYZ(pt) && point_hash.find(hash_value) == point_hash.end())
     {
       outCloud_->push_back(pt);
