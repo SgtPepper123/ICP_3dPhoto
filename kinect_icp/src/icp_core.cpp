@@ -190,7 +190,7 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
   if (!cloud1_)
   {
     cloud1_ = new PCloud(*new_point_cloud);
-    outCloud_ = new PCloud(*new_point_cloud);
+    outCloud_ = new PCloud();
     outCloud_->header = new_point_cloud->header;
 
     outCloud_->sensor_origin_ = new_point_cloud->sensor_origin_;
