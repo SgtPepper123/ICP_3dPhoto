@@ -17,6 +17,7 @@ public:
   ~Vrip();
 
   void fuseCloud(const PCloud::ConstPtr& new_point_cloud);
+  void testScan();
 
   void marchingCubes();
 

@@ -146,13 +146,13 @@ Vrip::Vrip()
 
   free(volume);
 
-  cl_kernel* kernels[3] = {&fuse_kernel_, &preMarching_, &mainMarching_};
+  cl_kernel * kernels[3] = {&fuse_kernel_, &preMarching_, &mainMarching_};
   const char* names[3] = {"fuse", "precube", "cube"};
   loadKernel("fuse.cl", 3, kernels, names);
 
-  cl_kernel* kernels2[3] = {&scanLargeArrays_, &blockAddition_, &prefixSum_};
+  cl_kernel * kernels2[3] = {&scanLargeArrays_, &blockAddition_, &prefixSum_};
   const char* names2[3] = {"ScanLargeArrays", "blockAddition", "prefixSum"};
-  //loadKernel("ScanLargeArrays_Kernels.cl", 3, kernels2, names2);
+  loadKernel("ScanLargeArrays_Kernels.cl", 3, kernels2, names2);
 }
 
 void Vrip::loadKernel(const char* filename, int num_kernels, cl_kernel* kernels[],
@@ -231,10 +231,10 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
       image[index++] = 0;
     }
   }
-  
+
   cl_int ret = clEnqueueWriteBuffer(command_queue_, image_mem_obj_, CL_TRUE, 0,
     imageSize_ * sizeof (float), image, 0, NULL, NULL);
-    
+
   clFinish(command_queue_);
 
   free(image);
@@ -270,8 +270,102 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
     }
     std::cout << std::endl;
   }*/
-  
-  marchingCubes();
+
+  //marchingCubes();
+  testScan();
+}
+
+void Vrip::testScan()
+{
+  cl_int ret;
+  cl_mem inputBuffer;
+
+  const int length = 2048;
+  cl_float* input;
+
+  /* input buffer size */
+  cl_uint sizeBytes = length * sizeof (cl_float);
+
+  /* allocate memory for input arrray */
+  input = (cl_float*) malloc(sizeBytes);
+
+  /* error check */
+  CHECK(!input);
+
+  for (int i = 0; i < length; i++)
+  {
+    input[i] = i + 0.5;
+  }
+
+
+  inputBuffer = clCreateBuffer(
+    context_,
+    CL_MEM_READ_ONLY,
+    sizeof (cl_float) * length,
+    0,
+    &ret);
+  CHECK(ret);
+
+
+  /* Enqueue Input Buffer */
+  ret = clEnqueueWriteBuffer(command_queue_,
+    inputBuffer,
+    1,
+    0,
+    length * sizeof (cl_float),
+    input,
+    0,
+    0,
+    NULL);
+  CHECK(ret);
+
+
+  /* Wait for write to finish */
+  clFinish(command_queue_);
+
+  cl_mem outputBuffer;
+
+
+  preFixSum(&inputBuffer, &outputBuffer, length);
+
+
+  cl_float* output;
+  /* allocate memory for output buffer */
+  output = (cl_float*) malloc(sizeBytes);
+
+  /* Read the final result */
+  ret = clEnqueueReadBuffer(command_queue_,
+    outputBuffer,
+    1,
+    0,
+    length * sizeof (cl_float),
+    output,
+    0,
+    0,
+    NULL);
+
+  CHECK(ret);
+
+  clFinish(command_queue_);
+
+  float sum = 0;
+  for (int i=0; i<length; i++)
+  {
+    float tmp = input[i];
+    input[i] = sum;
+    sum += tmp;
+  }
+
+  std::cout << "Output: " << std::endl;
+  for (int i = 0; i < length; i++) {
+    if (output[i] != input[i]) {
+      std::cout << "ERROR!" << std::endl;
+      exit(1);
+    }
+
+  }
+  std::cout << "Test PASSED!" << std::endl;
+  exit(0);
 }
 
 void Vrip::marchingCubes()
@@ -296,7 +390,7 @@ void Vrip::marchingCubes()
 
   cl_mem out_mem_obj = clCreateBuffer(context_, CL_MEM_WRITE_ONLY,
     memoryToAllocate * sizeof (float), NULL, &ret);
-    
+
   CHECK(ret);
 
   // Set the arguments of the kernel
@@ -311,7 +405,7 @@ void Vrip::marchingCubes()
   float* hostOut = (float*) malloc(memoryToAllocate * sizeof (float));
 
   ret = clEnqueueReadBuffer(command_queue_, out_mem_obj, CL_TRUE, 0,
-    memoryToAllocate * sizeof(float), hostOut, 0, NULL, NULL);
+    memoryToAllocate * sizeof (float), hostOut, 0, NULL, NULL);
 
   clFinish(command_queue_);
 
@@ -342,27 +436,6 @@ void Vrip::marchingCubes()
 
 int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
 {
-  int* sumArray = (int*) malloc(volumeSize_ *sizeof (int));
-  CHECK(clEnqueueReadBuffer(command_queue_, *inputBuffer, CL_TRUE, 0,
-    volumeSize_ * sizeof (int), sumArray, 0, NULL, NULL));
-  
-  clFinish(command_queue_);  
-  
-  int sum = 0;
-  for(int i = 0; i < volumeSize_; ++i)
-  {
-    int tmp = sumArray[i];
-    sumArray[i] = sum;
-    sum += tmp;
-  }
-  
-  CHECK(clEnqueueWriteBuffer(command_queue_, *output, CL_TRUE, 0,
-    volumeSize_ * sizeof (int), sumArray, 0, NULL, NULL));
-   
-  free(sumArray);
-  
-  return sum;
-
   cl_uint pass;
   cl_uint length = input_length;
 
@@ -439,16 +512,17 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
 
   /* Do block-addition on outputBuffers */
   bAddition((cl_uint) (length / pow((float) blockSize, (float) (pass - 1))),
-      &tempBuffer, &outputBuffer[pass - 1]);
+    &tempBuffer, &outputBuffer[pass - 1]);
 
   for (int i = pass - 1; i > 0; i--)
   {
     bAddition((cl_uint) (length / pow((float) blockSize, (float) (i - 1))),
-        &outputBuffer[i], &outputBuffer[i - 1]);
+      &outputBuffer[i], &outputBuffer[i - 1]);
   }
 
   clFinish(command_queue_);
 
+  *output = outputBuffer[0];
   // TODO free everything!
   // TODO return correct value
   return -1;
@@ -519,7 +593,7 @@ void Vrip::bScan(cl_uint len,
 
 
   /* Enqueue a kernel run call.*/
-  CHECK(clEnqueueNDRangeKernel(
+  ret = (clEnqueueNDRangeKernel(
     command_queue_,
     scanLargeArrays_,
     1,
@@ -529,6 +603,8 @@ void Vrip::bScan(cl_uint len,
     0,
     NULL,
     NULL));
+
+  CHECK(ret);
 }
 
 void Vrip::pScan(cl_uint len,
