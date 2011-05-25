@@ -11,11 +11,9 @@ using namespace kinect_icp;
 
 #define MAX_SOURCE_SIZE (0x100000)
 #define BLOCK_SIZE = 1024
-
 #define TEST_LEAKS
 
 #define CHECK(value) if (value != 0) {std::cerr << "An Error(" << value << ") occurred at " << __FILE__ << ":" << __LINE__ << std::endl; exit(1);}
-
 
 #define SEP printf("-----------------------------------------------------------\n")
 
@@ -158,6 +156,12 @@ Vrip::Vrip()
   cl_kernel * kernels2[3] = {&scanLargeArrays_, &blockAddition_, &prefixSum_};
   const char* names2[3] = {"ScanLargeArrays", "blockAddition", "prefixSum"};
   loadKernel("ScanLargeArrays_Kernels.cl", 3, kernels2, names2);
+
+#ifdef TEST_LEAKS
+  testScan();
+  Cleanup();
+  exit(1);
+#endif
 }
 
 void Vrip::loadKernel(const char* filename, int num_kernels, cl_kernel* kernels[],
@@ -204,7 +208,7 @@ void Vrip::loadKernel(const char* filename, int num_kernels, cl_kernel* kernels[
   free(source_str);
 }
 
-Vrip::~Vrip()
+void Vrip::Cleanup()
 {
   // Clean up
   CHECK(clFlush(command_queue_));
@@ -216,6 +220,11 @@ Vrip::~Vrip()
   CHECK(clReleaseMemObject(image_mem_obj_));
   CHECK(clReleaseCommandQueue(command_queue_));
   CHECK(clReleaseContext(context_));
+}
+
+Vrip::~Vrip()
+{
+  Cleanup();
 }
 
 void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
@@ -371,8 +380,11 @@ void Vrip::testScan()
     }
   }
 
+  free(input);
+  free(output);
+  clReleaseMemObject(inputBuffer);
+  clReleaseMemObject(outputBuffer);
   std::cout << "Test PASSED!" << std::endl;
-  exit(0);
 }
 
 void Vrip::marchingCubes()
@@ -528,9 +540,22 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
       &outputBuffer[i], &outputBuffer[i - 1]);
   }
 
-  clFinish(command_queue_);
+  CHECK(clFinish(command_queue_));
+
+  CHECK(clReleaseMemObject(tempBuffer));
+      for(int i = 0; i < (int)pass; i++)
+    {
+        if (i != 0)
+          CHECK(clReleaseMemObject(outputBuffer[i]));
+        CHECK(clReleaseMemObject(blockSumBuffer[i]));
+    }
+
 
   *output = outputBuffer[0];
+
+  free(blockSumBuffer);
+  free(outputBuffer);
+
   // TODO free everything!
   // TODO return correct value
   return -1;

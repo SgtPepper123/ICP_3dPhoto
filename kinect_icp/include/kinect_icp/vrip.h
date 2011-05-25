@@ -28,6 +28,8 @@ public:
   };
 
 private:
+  void Cleanup();
+
   cl_command_queue command_queue_;
   cl_kernel fuse_kernel_;
   cl_kernel preMarching_;
