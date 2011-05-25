@@ -1,3 +1,9 @@
+__constant float project[2][4] = {{525.0, 0, 319.5, 0},{525.0, 0, 319.5, 0}}; 
+/*{{525.0,      0, 319.5, 0},
+      0,  525.0, 239.5, 0},
+      0,      0,     1, 0}
+    };
+*/
 __kernel void fuse(__global float *Volume, __global float *Image, int N, float d_min, float d_max)
 {
     // Get the index of the current element
