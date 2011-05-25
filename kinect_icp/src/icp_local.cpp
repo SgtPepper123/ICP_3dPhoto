@@ -89,8 +89,8 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 
   return elapsedTime;
 }
-const int MatchRadius = 1;
-const int Radius = 6;
+const int MatchRadius = 10;
+const int Radius = 3;
 
 void IcpLocal::SelectMatchReject()
 {
