@@ -36,7 +36,7 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
   , maxIterations_(iterations)
   , selectedCount_(0)
   , transformation_(Matrix4f::Identity())
-  , selectionAmount_(60)
+  , selectionAmount_(200)
 {
   //srand(time(NULL));
   srand(42);
@@ -90,7 +90,7 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
   return elapsedTime;
 }
 const int MatchRadius = 1;
-const int Radius = 2;
+const int Radius = 6;
 
 void IcpLocal::SelectMatchReject()
 {
@@ -222,7 +222,6 @@ void IcpLocal::SelectMatchReject()
       {
         continue;
       }
-
 
       Vector3f normal;
       //cout << RED << "NormalCoordinates" << selected_[i].x << ", " << selected_[i].y << WHITE << endl;

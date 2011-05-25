@@ -163,6 +163,26 @@ void IcpCore::transformCloud(PCloud* cloud, float color, bool transformCoordinat
   }
 }
 
+Eigen::Matrix4f IcpCore::invertedTransformation(Eigen::Matrix4f original_matrix)
+{
+  Matrix3f rotation = original_matrix.topLeftCorner(3, 3);
+  Vector3f translation = original_matrix.topRightCorner(3, 1);
+  Vector3f angles = rotation.eulerAngles(0, 1, 2);
+
+  Matrix4f result = Eigen::Matrix4f::Identity();
+
+  result.topLeftCorner(3, 3) = (
+    AngleAxisf(-angles(0), Vector3f::UnitX()) *
+    AngleAxisf(-angles(1), Vector3f::UnitY()) *
+    AngleAxisf(-angles(2), Vector3f::UnitZ())
+    ).toRotationMatrix();
+
+
+  result.topRightCorner(3, 1) = -translation;
+
+  return result;
+}
+
 void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
 {
   ROS_DEBUG("Received Point Cloud");
@@ -203,42 +223,31 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
     return;
   }
 
-  if (cloud2_)
-  {
-    delete cloud2_;
-    cloud2_ = NULL;
-  }
-
-  cloud2_ = cloud1_;
   cloud1_ = new PCloud(*new_point_cloud);
 
   if (algorithm_)
   {
     delete algorithm_;
   }
-
-  algorithm_ = new IcpLocal(cloud1_, cloud2_);
-
+  algorithm_ = new IcpLocal(outCloud_, cloud1_);
+  algorithm_->SetTransformation(lastTransformation_);
   algorithm_->SetMaxIterations(200);
 
   numComputes_++;
   totalTime_ += algorithm_->Compute();
   cout << "Average: " << totalTime_ / numComputes_ << " ms (" << totalTime_ << "/" << numComputes_ << ")" << endl;
 
-  PCloud cloud(*cloud1_);
-  lastTransformation_ *= algorithm_->GetTransformation();
+  lastTransformation_ = algorithm_->GetTransformation();
+  Eigen::Matrix4f inverted = invertedTransformation(lastTransformation_);
 
-  BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud.points)
+  BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud1_->points)
   {
     Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
-    pnt = lastTransformation_ * pnt;
+    pnt = inverted * pnt;
     pt.x = pnt[0];
     pt.y = pnt[1];
     pt.z = pnt[2];
-  }
 
-  BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud.points)
-  {
     uint8_t first = pt.x * 100;
     uint8_t second = pt.y * 100;
     uint8_t third = pt.z * 100;

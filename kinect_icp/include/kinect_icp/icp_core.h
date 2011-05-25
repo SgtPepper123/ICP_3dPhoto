@@ -30,6 +30,8 @@ private:
   void publishDiffToStart();
   void compute(PCloud* cloud1, PCloud* cloud2, int max_iterations, int selection_amount);
   void transformCloud(PCloud* cloud, float color, bool transformCoordinates=true);
+  Eigen::Matrix4f invertedTransformation(Eigen::Matrix4f original_matrix);
+
 
   //Members
   std::vector<PCloud::ConstPtr> Clouds_;
