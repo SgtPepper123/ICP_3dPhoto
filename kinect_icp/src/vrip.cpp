@@ -92,7 +92,7 @@ const float d_max = 0.05;
 const float d_min = -d_max;
 const int blockSize = 1024;
 
-#define CHECK(value) if (value != 0) {std::cerr << "An Error occurred at " << __FILE__ << ":" << __LINE__ << std::endl; exit(1);}
+#define CHECK(value) if (value != 0) {std::cerr << "An Error(" << value << ") occurred at " << __FILE__ << ":" << __LINE__ << std::endl; exit(1);}
 
 Vrip::Vrip()
   : imageSize_(Volume_Size*Volume_Size * 4)
