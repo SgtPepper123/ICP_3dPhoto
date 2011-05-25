@@ -177,13 +177,15 @@ void Vrip::loadKernel(const char* filename, int num_kernels, cl_kernel* kernels[
   CHECK(ret);
 
   // Build the program
-  CHECK(clBuildProgram(program, 1, &device_id_, NULL, NULL, NULL));
+  ret = clBuildProgram(program, 1, &device_id_, NULL, NULL, NULL);
 
   char buffer[2048];
   size_t len;
   clGetProgramBuildInfo(program, device_id_, CL_PROGRAM_BUILD_LOG, sizeof (buffer), buffer, &len);
 
   std::cout << buffer << std::endl;
+  
+  CHECK(ret);
 
   for (int i = 0; i < num_kernels; i++)
   {
