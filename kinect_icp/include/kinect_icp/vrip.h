@@ -17,6 +17,7 @@ public:
   ~Vrip();
 
   void fuseCloud(const PCloud::ConstPtr& new_point_cloud);
+  void testScan();
 
   void marchingCubes();
 
@@ -27,6 +28,8 @@ public:
   };
 
 private:
+  void Cleanup();
+
   cl_command_queue command_queue_;
   cl_kernel fuse_kernel_;
   cl_kernel preMarching_;
@@ -55,7 +58,7 @@ private:
     cl_mem *inputBuffer,
     cl_mem * outputBuffer);
 
-  int preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length);
+  int preFixSum(cl_mem inputBuffer, int input_length);
 
   void loadKernel(const char* filename, int num_kernels, cl_kernel* kernels[],
   const char* kernel_names[]);

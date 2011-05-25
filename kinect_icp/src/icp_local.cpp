@@ -36,7 +36,7 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
   , maxIterations_(iterations)
   , selectedCount_(0)
   , transformation_(Matrix4f::Identity())
-  , selectionAmount_(60)
+  , selectionAmount_(200)
 {
   //srand(time(NULL));
   srand(42);
@@ -89,8 +89,8 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 
   return elapsedTime;
 }
-const int MatchRadius = 1;
-const int Radius = 2;
+const int MatchRadius = 10;
+const int Radius = 3;
 
 void IcpLocal::SelectMatchReject()
 {
@@ -100,8 +100,8 @@ void IcpLocal::SelectMatchReject()
     0, 525.0, 239.5, 0,
     0, 0, 1, 0;
 
-  int width = first_->width;
-  int height = first_->height;
+  int max = first_->points.size();
+
   selected_.clear();
   selected_.reserve(selectionAmount_);
 
@@ -109,7 +109,7 @@ void IcpLocal::SelectMatchReject()
   //average guessing
   for (int i = 0; i < 10;)
   {
-    const Point& tmp = (*first_)(rand() % width, rand() % height);
+    const Point& tmp = first_->points[rand()%max];
     Vector4f p1(tmp.x, tmp.y, tmp.z, 1.f);
 
     p1 = transformation_ * p1;
@@ -142,9 +142,9 @@ void IcpLocal::SelectMatchReject()
   for (int i = 0; i < selectionAmount_;)
   {
     MatchedPoint mp;
-    int x1 = rand() % width;
-    int y1 = rand() % height;
-    const Point& tmp = (*first_)(x1, y1);
+
+    const Point& tmp = first_->points[rand()%max];
+
     if (pcl::hasValidXYZ(tmp))
     {
       mp.first_point = Vector3f(tmp.x, tmp.y, tmp.z);
@@ -223,9 +223,14 @@ void IcpLocal::SelectMatchReject()
         continue;
       }
 
-
       Vector3f normal;
       //cout << RED << "NormalCoordinates" << selected_[i].x << ", " << selected_[i].y << WHITE << endl;
+
+      if (bestX < Radius || bestY < Radius || bestX >= xmax - Radius || bestY >= ymax - Radius)
+      {
+        continue;
+      }
+
       if (!ComputeNormal(bestX, bestY, normal))
       {
         continue;

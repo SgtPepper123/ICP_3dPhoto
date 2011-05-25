@@ -12,6 +12,10 @@ using namespace kinect_icp;
 #define MAX_SOURCE_SIZE (0x100000)
 #define BLOCK_SIZE = 1024
 
+//#define TEST_LEAKS
+
+#define CHECK(value) if (value != 0) {std::cerr << "An Error(" << value << ") occurred at " << __FILE__ << ":" << __LINE__ << std::endl; exit(1);}
+
 #define SEP printf("-----------------------------------------------------------\n")
 
 int device_stats(cl_device_id device_id)
@@ -92,8 +96,6 @@ const float d_max = 10.25;
 const float d_min = -d_max;
 const int blockSize = 1024;
 
-#define CHECK(value) if (value != 0) {std::cerr << "An Error(" << value << ") occurred at " << __FILE__ << ":" << __LINE__ << std::endl; exit(1);}
-
 Vrip::Vrip()
   : imageSize_(Volume_Size*Volume_Size * 4)
   , volumeSize_(Volume_Size*Volume_Size*Volume_Size)
@@ -102,11 +104,13 @@ Vrip::Vrip()
   cl_platform_id platform_id = NULL;
   cl_uint ret_num_devices;
   cl_uint ret_num_platforms;
-  cl_int ret = clGetPlatformIDs(1, &platform_id, &ret_num_platforms);
-  ret = clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_ALL, 1,
-    &device_id_, &ret_num_devices);
+  CHECK(clGetPlatformIDs(1, &platform_id, &ret_num_platforms));
+  CHECK(clGetDeviceIDs(platform_id, CL_DEVICE_TYPE_ALL, 1,
+    &device_id_, &ret_num_devices));
 
   device_stats(device_id_);
+
+  cl_int ret;
 
   // Create an OpenCL context
   context_ = clCreateContext(NULL, 1, &device_id_, NULL, NULL, &ret);
@@ -146,13 +150,19 @@ Vrip::Vrip()
 
   free(volume);
 
-  cl_kernel* kernels[3] = {&fuse_kernel_, &preMarching_, &mainMarching_};
+  cl_kernel * kernels[3] = {&fuse_kernel_, &preMarching_, &mainMarching_};
   const char* names[3] = {"fuse", "precube", "cube"};
   loadKernel("fuse.cl", 3, kernels, names);
 
-  cl_kernel* kernels2[3] = {&scanLargeArrays_, &blockAddition_, &prefixSum_};
+  cl_kernel * kernels2[3] = {&scanLargeArrays_, &blockAddition_, &prefixSum_};
   const char* names2[3] = {"ScanLargeArrays", "blockAddition", "prefixSum"};
-  //loadKernel("ScanLargeArrays_Kernels.cl", 3, kernels2, names2);
+  loadKernel("ScanLargeArrays_Kernels.cl", 3, kernels2, names2);
+
+#ifdef TEST_LEAKS
+  testScan();
+  Cleanup();
+  exit(1);
+#endif
 }
 
 void Vrip::loadKernel(const char* filename, int num_kernels, cl_kernel* kernels[],
@@ -201,18 +211,29 @@ void Vrip::loadKernel(const char* filename, int num_kernels, cl_kernel* kernels[
   free(source_str);
 }
 
-Vrip::~Vrip()
+void Vrip::Cleanup()
 {
   // Clean up
-  cl_int ret = clFlush(command_queue_);
-  ret = clFinish(command_queue_);
-  ret = clReleaseKernel(fuse_kernel_);
-  ret = clReleaseKernel(mainMarching_);
-  ret = clReleaseMemObject(volume_mem_obj_);
-  ret = clReleaseMemObject(march_mem_obj_);
-  ret = clReleaseMemObject(image_mem_obj_);
-  ret = clReleaseCommandQueue(command_queue_);
-  ret = clReleaseContext(context_);
+  CHECK(clFlush(command_queue_));
+  CHECK(clFinish(command_queue_));
+
+  CHECK(clReleaseKernel(fuse_kernel_));
+  CHECK(clReleaseKernel(preMarching_));
+  CHECK(clReleaseKernel(mainMarching_));
+  CHECK(clReleaseKernel(scanLargeArrays_));
+  CHECK(clReleaseKernel(blockAddition_));
+  CHECK(clReleaseKernel(prefixSum_));
+
+  CHECK(clReleaseMemObject(volume_mem_obj_));
+  CHECK(clReleaseMemObject(march_mem_obj_));
+  CHECK(clReleaseMemObject(image_mem_obj_));
+  CHECK(clReleaseCommandQueue(command_queue_));
+  CHECK(clReleaseContext(context_));
+}
+
+Vrip::~Vrip()
+{
+  Cleanup();
 }
 
 void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
@@ -281,30 +302,30 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
     std::cout << std::endl;
   }*/
 
-  cl_int ret = clEnqueueWriteBuffer(command_queue_, image_mem_obj_, CL_TRUE, 0,
-    imageSize_ * sizeof (float), image, 0, NULL, NULL);
-    
+  CHECK(clEnqueueWriteBuffer(command_queue_, image_mem_obj_, CL_TRUE, 0,
+    imageSize_ * sizeof (float), image, 0, NULL, NULL));
+
   clFinish(command_queue_);
 
   free(image);
 
   // Set the arguments of the kernel
-  ret = clSetKernelArg(fuse_kernel_, 0, sizeof (cl_mem), (void *) &volume_mem_obj_);
-  ret = clSetKernelArg(fuse_kernel_, 1, sizeof (cl_mem), (void *) &image_mem_obj_);
-  ret = clSetKernelArg(fuse_kernel_, 2, sizeof (int), (void *) &Volume_Size);
-  ret = clSetKernelArg(fuse_kernel_, 3, sizeof (int), (void *) &width);
-  ret = clSetKernelArg(fuse_kernel_, 4, sizeof (int), (void *) &height);
-  ret = clSetKernelArg(fuse_kernel_, 5, sizeof (float), (void *) &d_min);
-  ret = clSetKernelArg(fuse_kernel_, 6, sizeof (float), (void *) &d_max);
+  CHECK(clSetKernelArg(fuse_kernel_, 0, sizeof (cl_mem), (void *) &volume_mem_obj_));
+  CHECK(clSetKernelArg(fuse_kernel_, 1, sizeof (cl_mem), (void *) &image_mem_obj_));
+  CHECK(clSetKernelArg(fuse_kernel_, 2, sizeof (int), (void *) &Volume_Size));
+  CHECK(clSetKernelArg(fuse_kernel_, 3, sizeof (int), (void *) &width));
+  CHECK(clSetKernelArg(fuse_kernel_, 4, sizeof (int), (void *) &height));
+  CHECK(clSetKernelArg(fuse_kernel_, 5, sizeof (float), (void *) &d_min));
+  CHECK(clSetKernelArg(fuse_kernel_, 6, sizeof (float), (void *) &d_max));
 
   // Execute the OpenCL kernel on the list
   size_t localWorkSize[] = {16, 16};
   size_t globalWorkSize[] = {Volume_Size, Volume_Size};
-  ret = clEnqueueNDRangeKernel(command_queue_, fuse_kernel_, 2, NULL,
-    globalWorkSize, localWorkSize, 0, NULL, NULL);
+  CHECK(clEnqueueNDRangeKernel(command_queue_, fuse_kernel_, 2, NULL,
+    globalWorkSize, localWorkSize, 0, NULL, NULL));
 
   /*float* volume = (float*) malloc(volumeSize_ * 2 *sizeof (float));
-  ret = clEnqueueReadBuffer(command_queue_, volume_mem_obj_, CL_TRUE, 0,
+  CHECK(clEnqueueReadBuffer(command_queue_, volume_mem_obj_, CL_TRUE, 0,
     volumeSize_ * 2 * sizeof (float), volume, 0, NULL, NULL);
 
   int i = 0;
@@ -321,8 +342,103 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
     }
     std::cout << std::endl;
   }*/
-  
+
   marchingCubes();
+}
+
+void Vrip::testScan()
+{
+  cl_int ret;
+  cl_mem inputBuffer;
+
+  const int length = 2048;
+  cl_int* input;
+
+  /* input buffer size */
+  cl_uint sizeBytes = length * sizeof (cl_int);
+
+  /* allocate memory for input arrray */
+  input = (cl_int*) malloc(sizeBytes);
+
+  /* error check */
+  CHECK(!input);
+
+  for (int i = 0; i < length; i++)
+  {
+    input[i] = i*2+1;
+  }
+
+
+  inputBuffer = clCreateBuffer(
+    context_,
+    CL_MEM_READ_WRITE,
+    sizeof (cl_int) * length,
+    0,
+    &ret);
+  CHECK(ret);
+
+
+  /* Enqueue Input Buffer */
+  CHECK(clEnqueueWriteBuffer(command_queue_,
+    inputBuffer,
+    1,
+    0,
+    length * sizeof (cl_int),
+    input,
+    0,
+    0,
+    NULL));
+
+
+  /* Wait for write to finish */
+  clFinish(command_queue_);
+
+  preFixSum(inputBuffer, length);
+
+  cl_int* output;
+  /* allocate memory for output buffer */
+  output = (cl_int*) malloc(sizeBytes);
+
+  /* Read the final result */
+  CHECK(clEnqueueReadBuffer(command_queue_,
+    inputBuffer,
+    1,
+    0,
+    length * sizeof (cl_int),
+    output,
+    0,
+    0,
+    NULL));
+
+  clFinish(command_queue_);
+
+  int sum = 0;
+  for (int i = 0; i < length; i++)
+  {
+    int tmp = input[i];
+    input[i] = sum;
+    sum += tmp;
+  }
+
+  std::cout << "Output: " << std::endl;
+  for (int i = 0; i < length; i++)
+  {
+    if (i < 10 || i > length - 10)
+    {
+      std::cout << "I[" << i << "] => GPU/CPU: " << output[i] << "/" << output[i] << std::endl;
+    }
+
+    if (output[i] != input[i])
+    {
+      std::cout << "ERROR!" << std::endl;
+      exit(1);
+    }
+  }
+
+  free(input);
+  free(output);
+  clReleaseMemObject(inputBuffer);
+  std::cout << "Test PASSED!" << std::endl;
 }
 
 void Vrip::marchingCubes()
@@ -330,39 +446,40 @@ void Vrip::marchingCubes()
   std::cout << "pre Marching cubes started" << std::endl;
 
   // Set the arguments of the kernel
-  int ret = clSetKernelArg(preMarching_, 0, sizeof (cl_mem), (void *) &volume_mem_obj_);
-  ret = clSetKernelArg(preMarching_, 1, sizeof (cl_mem), (void *) &march_mem_obj_);
-  ret = clSetKernelArg(preMarching_, 2, sizeof (int), (void *) &Volume_Size);
+  CHECK(clSetKernelArg(preMarching_, 0, sizeof (cl_mem), (void *) &volume_mem_obj_));
+  CHECK(clSetKernelArg(preMarching_, 1, sizeof (cl_mem), (void *) &march_mem_obj_));
+  CHECK(clSetKernelArg(preMarching_, 2, sizeof (int), (void *) &Volume_Size));
 
   size_t localWorkSize3D[] = {16, 16, 1};
   size_t globalWorkSize3D[] = {Volume_Size, Volume_Size, Volume_Size};
-  ret = clEnqueueNDRangeKernel(command_queue_, preMarching_, 3, NULL,
-    globalWorkSize3D, localWorkSize3D, 0, NULL, NULL);
+  CHECK(clEnqueueNDRangeKernel(command_queue_, preMarching_, 3, NULL,
+    globalWorkSize3D, localWorkSize3D, 0, NULL, NULL));
 
   std::cout << "pre Marching cubes finished" << std::endl;
 
-  int memoryToAllocate = preFixSum(&march_mem_obj_, &march_mem_obj_, 1024);
+  int memoryToAllocate = preFixSum(march_mem_obj_, 1024);
 
   std::cout << "Marching cubes started" << std::endl;
 
+  cl_int ret;
   cl_mem out_mem_obj = clCreateBuffer(context_, CL_MEM_WRITE_ONLY,
     memoryToAllocate * sizeof (float), NULL, &ret);
-    
+
   CHECK(ret);
 
   // Set the arguments of the kernel
-  ret = clSetKernelArg(mainMarching_, 0, sizeof (cl_mem), (void *) &volume_mem_obj_);
-  ret = clSetKernelArg(mainMarching_, 1, sizeof (cl_mem), (void *) &march_mem_obj_);
-  ret = clSetKernelArg(mainMarching_, 2, sizeof (cl_mem), (void *) &out_mem_obj);
-  ret = clSetKernelArg(mainMarching_, 3, sizeof (int), (void *) &Volume_Size);
+  CHECK(clSetKernelArg(mainMarching_, 0, sizeof (cl_mem), (void *) &volume_mem_obj_));
+  CHECK(clSetKernelArg(mainMarching_, 1, sizeof (cl_mem), (void *) &march_mem_obj_));
+  CHECK(clSetKernelArg(mainMarching_, 2, sizeof (cl_mem), (void *) &out_mem_obj));
+  CHECK(clSetKernelArg(mainMarching_, 3, sizeof (int), (void *) &Volume_Size));
 
-  ret = clEnqueueNDRangeKernel(command_queue_, mainMarching_, 3, NULL,
-    globalWorkSize3D, localWorkSize3D, 0, NULL, NULL);
+  CHECK(clEnqueueNDRangeKernel(command_queue_, mainMarching_, 3, NULL,
+    globalWorkSize3D, localWorkSize3D, 0, NULL, NULL));
 
   float* hostOut = (float*) malloc(memoryToAllocate * sizeof (float));
 
-  ret = clEnqueueReadBuffer(command_queue_, out_mem_obj, CL_TRUE, 0,
-    memoryToAllocate * sizeof(float), hostOut, 0, NULL, NULL);
+  CHECK(clEnqueueReadBuffer(command_queue_, out_mem_obj, CL_TRUE, 0,
+    memoryToAllocate * sizeof (float), hostOut, 0, NULL, NULL));
 
   clFinish(command_queue_);
 
@@ -386,34 +503,13 @@ void Vrip::marchingCubes()
     File << 3 << " " << i * 3 << " " << i * 3 + 1 << " " << i * 3 + 2 << std::endl;
   }
 
-  ret = clReleaseMemObject(out_mem_obj);
+  CHECK(clReleaseMemObject(out_mem_obj));
 
   free(hostOut);
 }
 
-int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
+int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
 {
-  int* sumArray = (int*) malloc(volumeSize_ *sizeof (int));
-  CHECK(clEnqueueReadBuffer(command_queue_, *inputBuffer, CL_TRUE, 0,
-    volumeSize_ * sizeof (int), sumArray, 0, NULL, NULL));
-  
-  clFinish(command_queue_);  
-  
-  int sum = 0;
-  for(int i = 0; i < volumeSize_; ++i)
-  {
-    int tmp = sumArray[i];
-    sumArray[i] = sum;
-    sum += tmp;
-  }
-  
-  CHECK(clEnqueueWriteBuffer(command_queue_, *output, CL_TRUE, 0,
-    volumeSize_ * sizeof (int), sumArray, 0, NULL, NULL));
-   
-  free(sumArray);
-  
-  return sum;
-
   cl_uint pass;
   cl_uint length = input_length;
 
@@ -434,14 +530,15 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
 
   /* Allocate output buffers */
   outputBuffer = (cl_mem*) malloc(pass * sizeof (cl_mem));
+  outputBuffer[0] = inputBuffer;
 
-  for (int i = 0; i < (int) pass; i++)
+  for (int i = 1; i < (int) pass; i++)
   {
     int size = (int) (length / pow((float) blockSize, (float) i));
     outputBuffer[i] = clCreateBuffer(
       context_,
       CL_MEM_READ_WRITE,
-      sizeof (cl_float) * size,
+      sizeof (cl_int) * size,
       0,
       &ret);
 
@@ -457,7 +554,7 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
     blockSumBuffer[i] = clCreateBuffer(
       context_,
       CL_MEM_READ_WRITE,
-      sizeof (cl_float) * size,
+      sizeof (cl_int) * size,
       0,
       &ret);
 
@@ -469,13 +566,13 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
 
   tempBuffer = clCreateBuffer(context_,
     CL_MEM_READ_WRITE,
-    sizeof (cl_float) * tempLength,
+    sizeof (cl_int) * tempLength,
     0,
     &ret);
   CHECK(ret);
 
   /* Do block-wise sum */
-  bScan(length, inputBuffer, &outputBuffer[0], &blockSumBuffer[0]);
+  bScan(length, &inputBuffer, &outputBuffer[0], &blockSumBuffer[0]);
 
   for (int i = 1; i < (int) pass; i++)
   {
@@ -490,15 +587,28 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
 
   /* Do block-addition on outputBuffers */
   bAddition((cl_uint) (length / pow((float) blockSize, (float) (pass - 1))),
-      &tempBuffer, &outputBuffer[pass - 1]);
+    &tempBuffer, &outputBuffer[pass - 1]);
 
   for (int i = pass - 1; i > 0; i--)
   {
     bAddition((cl_uint) (length / pow((float) blockSize, (float) (i - 1))),
-        &outputBuffer[i], &outputBuffer[i - 1]);
+      &outputBuffer[i], &outputBuffer[i - 1]);
   }
 
-  clFinish(command_queue_);
+  CHECK(clFinish(command_queue_));
+
+  CHECK(clReleaseMemObject(tempBuffer));
+
+  for (int i = 0; i < (int) pass; i++)
+  {
+    if (i != 0)
+      CHECK(clReleaseMemObject(outputBuffer[i]));
+
+    CHECK(clReleaseMemObject(blockSumBuffer[i]));
+  }
+
+  free(blockSumBuffer);
+  free(outputBuffer);
 
   // TODO free everything!
   // TODO return correct value
@@ -514,63 +624,55 @@ void Vrip::bScan(cl_uint len,
   size_t globalThreads[1] = {len / 2};
   size_t localThreads[1] = {blockSize / 2};
 
-  cl_int ret;
-
   /* Set appropriate arguments to the kernel */
   /* 1st argument to the kernel - outputBuffer */
-  ret = clSetKernelArg(
+  CHECK(clSetKernelArg(
     scanLargeArrays_,
     0,
     sizeof (cl_mem),
-    (void *) outputBuffer);
-  CHECK(ret);
+    (void *) outputBuffer));
 
   /* 2nd argument to the kernel - inputBuffer */
-  ret = clSetKernelArg(
+  CHECK(clSetKernelArg(
     scanLargeArrays_,
     1,
     sizeof (cl_mem),
-    (void *) inputBuffer);
-  CHECK(ret);
+    (void *) inputBuffer));
 
   /* 3rd argument to the kernel - local memory */
-  ret = clSetKernelArg(
+  CHECK(clSetKernelArg(
     scanLargeArrays_,
     2,
-    blockSize * sizeof (cl_float),
-    NULL);
-  CHECK(ret);
+    blockSize * sizeof (cl_int),
+    NULL));
 
 
   /* 4th argument to the kernel - blockSize  */
-  ret = clSetKernelArg(
+  CHECK(clSetKernelArg(
     scanLargeArrays_,
     3,
     sizeof (cl_int),
-    &blockSize);
-  CHECK(ret);
+    &blockSize));
 
   /* 5th argument to the kernel - length  */
-  ret = clSetKernelArg(
+  CHECK(clSetKernelArg(
     scanLargeArrays_,
     4,
     sizeof (cl_int),
-    &len);
-  CHECK(ret);
+    &len));
 
   /* 6th argument to the kernel - sum of blocks  */
-  ret = clSetKernelArg(
+  CHECK(clSetKernelArg(
     scanLargeArrays_,
     5,
     sizeof (cl_mem),
-    blockSumBuffer);
-  CHECK(ret);
+    blockSumBuffer));
 
   // TODO maybe check if sufficient local memory
 
 
   /* Enqueue a kernel run call.*/
-  CHECK(clEnqueueNDRangeKernel(
+  CHECK((clEnqueueNDRangeKernel(
     command_queue_,
     scanLargeArrays_,
     1,
@@ -579,50 +681,44 @@ void Vrip::bScan(cl_uint len,
     localThreads,
     0,
     NULL,
-    NULL));
+    NULL)));
 }
 
 void Vrip::pScan(cl_uint len,
   cl_mem *inputBuffer,
   cl_mem * outputBuffer)
 {
-  cl_int ret;
-
   size_t globalThreads[1] = {len / 2};
   size_t localThreads[1] = {len / 2};
 
   /* Set appropriate arguments to the kernel */
   /* 1st argument to the kernel - outputBuffer */
-  ret = clSetKernelArg(
+  CHECK(clSetKernelArg(
     prefixSum_,
     0,
     sizeof (cl_mem),
-    (void *) outputBuffer);
-  CHECK(ret);
+    (void *) outputBuffer));
 
   /* 2nd argument to the kernel - inputBuffer */
-  ret = clSetKernelArg(
+  CHECK(clSetKernelArg(
     prefixSum_,
     1,
     sizeof (cl_mem),
-    (void *) inputBuffer);
-  CHECK(ret);
+    (void *) inputBuffer));
 
   /* 3rd argument to the kernel - local memory */
-  ret = clSetKernelArg(
+  CHECK(clSetKernelArg(
     prefixSum_,
     2,
-    len * sizeof (cl_float),
-    NULL);
-  CHECK(ret);
+    len * sizeof (cl_int),
+    NULL));
 
   /* 4th argument to the kernel - length */
-  ret = clSetKernelArg(
+  CHECK(clSetKernelArg(
     prefixSum_,
     3,
     sizeof (cl_int),
-    (void*) &len);
-  CHECK(ret);
+    (void*) &len));
 
   /* Enqueue a kernel run call.*/
   CHECK(clEnqueueNDRangeKernel(
@@ -641,28 +737,24 @@ void Vrip::bAddition(cl_uint len,
   cl_mem *inputBuffer,
   cl_mem *outputBuffer)
 {
-  cl_int ret;
-
   /* set the block size*/
   size_t globalThreads[1] = {len};
   size_t localThreads[1] = {blockSize};
 
   /*** Set appropriate arguments to the kernel ***/
   /* 1st argument to the kernel - inputBuffer */
-  ret = clSetKernelArg(
+  CHECK(clSetKernelArg(
     blockAddition_,
     0,
     sizeof (cl_mem),
-    (void*) inputBuffer);
-  CHECK(ret);
+    (void*) inputBuffer));
 
   /* 2nd argument to the kernel - outputBuffer */
-  ret = clSetKernelArg(
+  CHECK(clSetKernelArg(
     blockAddition_,
     1,
     sizeof (cl_mem),
-    (void *) outputBuffer);
-  CHECK(ret);
+    (void *) outputBuffer));
 
 
   /* Enqueue a kernel run call.*/

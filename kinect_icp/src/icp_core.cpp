@@ -61,24 +61,6 @@ void IcpCore::visualizeNormals(const PCloud::ConstPtr& new_point_cloud)
 {
   PCloud* cloud = new PCloud(*new_point_cloud);
 
-  RGBValue red;
-  //color.float_value = pt.rgb;
-  red.Red = 255;
-  red.Green = 0;
-  red.Blue = 0;
-
-  RGBValue green;
-  //color.float_value = pt.rgb;
-  green.Red = 0;
-  green.Green = 255;
-  green.Blue = 0;
-
-  RGBValue blue;
-  //color.float_value = pt.rgb;
-  blue.Red = 0;
-  blue.Green = 0;
-  blue.Blue = 255;
-
   int width = cloud->width;
   int height = cloud->height;
 
@@ -94,7 +76,7 @@ void IcpCore::visualizeNormals(const PCloud::ConstPtr& new_point_cloud)
     Point& pt = (*cloud)(x, y);
     if (pcl::hasValidXYZ(pt))
     {
-      pt.rgb = red.float_value;
+      pt.rgb = red_;
 
       for (int i = 0; i < 20; i++)
       {
@@ -107,7 +89,7 @@ void IcpCore::visualizeNormals(const PCloud::ConstPtr& new_point_cloud)
           new_point.x = pt.x + 0.005 * normal[0] * i;
           new_point.y = pt.y + 0.005 * normal[1] * i;
           new_point.z = pt.z + 0.005 * normal[2] * i;
-          new_point.rgb = green.float_value;
+          new_point.rgb = green_;
           cloud->push_back(new_point);
         }
       }
@@ -181,6 +163,110 @@ void IcpCore::transformCloud(PCloud* cloud, float color, bool transformCoordinat
   }
 }
 
+Eigen::Matrix4f IcpCore::invertedTransformation(Eigen::Matrix4f original_matrix)
+{
+  Matrix3f rotation = original_matrix.topLeftCorner(3, 3);
+  Vector3f translation = original_matrix.topRightCorner(3, 1);
+  Vector3f angles = rotation.eulerAngles(0, 1, 2);
+
+  Matrix4f result = Eigen::Matrix4f::Identity();
+
+  result.topLeftCorner(3, 3) = (
+    AngleAxisf(-angles(0), Vector3f::UnitX()) *
+    AngleAxisf(-angles(1), Vector3f::UnitY()) *
+    AngleAxisf(-angles(2), Vector3f::UnitZ())
+    ).toRotationMatrix();
+
+
+  result.topRightCorner(3, 1) = -translation;
+
+  return result;
+}
+
+void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
+{
+  ROS_DEBUG("Received Point Cloud");
+
+  if (!cloud1_)
+  {
+    cloud1_ = new PCloud(*new_point_cloud);
+    outCloud_ = new PCloud();
+    outCloud_->header = new_point_cloud->header;
+
+    outCloud_->sensor_origin_ = new_point_cloud->sensor_origin_;
+    outCloud_->sensor_orientation_ = new_point_cloud->sensor_orientation_;
+    outCloud_->is_dense = true;
+
+    BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud1_->points)
+    {
+      //      if (pcl::hasValidXYZ(pt))
+      //      cout << pt.x << "," << pt.y << "," << pt.z << " => " << int(pt.x*100)
+      //        << "," << int(pt.y*100) << "," << int(pt.z*100) << endl;
+
+      uint8_t first = pt.x * 100;
+      uint8_t second = pt.y * 100;
+      uint8_t third = pt.z * 100;
+      uint32_t hash_value = first + (second << 8) + (third << 16);
+      if (pcl::hasValidXYZ(pt) && point_hash.find(hash_value) == point_hash.end())
+      {
+        outCloud_->push_back(pt);
+        point_hash.insert(hash_value);
+      }
+    }
+
+    outCloud_->width = outCloud_->points.size();
+    outCloud_->height = 1;
+
+    cout << "Got " << outCloud_->width << " valid points!" << endl;
+
+    publisher_.publish(*outCloud_);
+    return;
+  }
+
+  cloud1_ = new PCloud(*new_point_cloud);
+
+  if (algorithm_)
+  {
+    delete algorithm_;
+  }
+  algorithm_ = new IcpLocal(outCloud_, cloud1_);
+  algorithm_->SetTransformation(lastTransformation_);
+  algorithm_->SetMaxIterations(200);
+
+  numComputes_++;
+  totalTime_ += algorithm_->Compute();
+  cout << "Average: " << totalTime_ / numComputes_ << " ms (" << totalTime_ << "/" << numComputes_ << ")" << endl;
+
+  lastTransformation_ = algorithm_->GetTransformation();
+  Eigen::Matrix4f inverted = invertedTransformation(lastTransformation_);
+
+  BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud1_->points)
+  {
+    Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
+    pnt = inverted * pnt;
+    pt.x = pnt[0];
+    pt.y = pnt[1];
+    pt.z = pnt[2];
+
+    uint8_t first = pt.x * 100;
+    uint8_t second = pt.y * 100;
+    uint8_t third = pt.z * 100;
+    uint32_t hash_value = first + (second << 8) + (third << 16);
+    if (pcl::hasValidXYZ(pt) && point_hash.find(hash_value) == point_hash.end())
+    {
+      outCloud_->push_back(pt);
+      point_hash.insert(hash_value);
+    }
+  }
+
+  outCloud_->width = outCloud_->points.size();
+  outCloud_->height = 1;
+
+  cout << "Have " << outCloud_->width << " valid points!" << endl;
+
+  publisher_.publish(*outCloud_);
+}
+
 void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 {
   ROS_DEBUG("Received Point Cloud");
@@ -225,8 +311,8 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     }
 
     cloud2_ = cloud1_;
-      cloud1_ = new PCloud(*new_point_cloud);
-    if(!accumulateResults_)
+    cloud1_ = new PCloud(*new_point_cloud);
+    if (!accumulateResults_)
     {
       delete outCloud_;
       outCloud_ = new PCloud(*cloud2_);
@@ -284,7 +370,7 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
   else
   {
     PCloud cloud(*cloud1_);
-    if(accumulateResults_)
+    if (accumulateResults_)
     {
       lastTransformation_ *= algorithm_->GetTransformation();
     }
@@ -307,7 +393,6 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
   }
 
   publisher_.publish(*outCloud_);
-
 }
 
 void IcpCore::tuneParameters(const PCloud::ConstPtr& new_point_cloud)
