@@ -320,7 +320,7 @@ void Vrip::testScan()
 
   inputBuffer = clCreateBuffer(
     context_,
-    CL_MEM_READ_ONLY,
+    CL_MEM_READ_WRITE,
     sizeof (cl_int) * length,
     0,
     &ret);
@@ -342,11 +342,7 @@ void Vrip::testScan()
   /* Wait for write to finish */
   clFinish(command_queue_);
 
-  cl_mem outputBuffer;
-
-
-  preFixSum(&inputBuffer, &outputBuffer, length);
-
+  preFixSum(inputBuffer, length);
 
   cl_int* output;
   /* allocate memory for output buffer */
@@ -354,7 +350,7 @@ void Vrip::testScan()
 
   /* Read the final result */
   CHECK(clEnqueueReadBuffer(command_queue_,
-    outputBuffer,
+    inputBuffer,
     1,
     0,
     length * sizeof (cl_int),
@@ -391,7 +387,6 @@ void Vrip::testScan()
   free(input);
   free(output);
   clReleaseMemObject(inputBuffer);
-  clReleaseMemObject(outputBuffer);
   std::cout << "Test PASSED!" << std::endl;
 }
 
@@ -411,7 +406,7 @@ void Vrip::marchingCubes()
 
   std::cout << "pre Marching cubes finished" << std::endl;
 
-  int memoryToAllocate = preFixSum(&march_mem_obj_, &march_mem_obj_, 1024);
+  int memoryToAllocate = preFixSum(march_mem_obj_, 1024);
 
   std::cout << "Marching cubes started" << std::endl;
 
@@ -462,7 +457,7 @@ void Vrip::marchingCubes()
   free(hostOut);
 }
 
-int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
+int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
 {
   cl_uint pass;
   cl_uint length = input_length;
@@ -484,8 +479,9 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
 
   /* Allocate output buffers */
   outputBuffer = (cl_mem*) malloc(pass * sizeof (cl_mem));
+  outputBuffer[0] = inputBuffer;
 
-  for (int i = 0; i < (int) pass; i++)
+  for (int i = 1; i < (int) pass; i++)
   {
     int size = (int) (length / pow((float) blockSize, (float) i));
     outputBuffer[i] = clCreateBuffer(
@@ -525,7 +521,7 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
   CHECK(ret);
 
   /* Do block-wise sum */
-  bScan(length, inputBuffer, &outputBuffer[0], &blockSumBuffer[0]);
+  bScan(length, &inputBuffer, &outputBuffer[0], &blockSumBuffer[0]);
 
   for (int i = 1; i < (int) pass; i++)
   {
@@ -556,11 +552,9 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
   {
     if (i != 0)
       CHECK(clReleaseMemObject(outputBuffer[i]));
+
     CHECK(clReleaseMemObject(blockSumBuffer[i]));
   }
-
-
-  *output = outputBuffer[0];
 
   free(blockSumBuffer);
   free(outputBuffer);

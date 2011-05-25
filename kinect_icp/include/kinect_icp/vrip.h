@@ -58,7 +58,7 @@ private:
     cl_mem *inputBuffer,
     cl_mem * outputBuffer);
 
-  int preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length);
+  int preFixSum(cl_mem inputBuffer, int input_length);
 
   void loadKernel(const char* filename, int num_kernels, cl_kernel* kernels[],
   const char* kernel_names[]);
