@@ -314,7 +314,7 @@ void Vrip::testScan()
 
   for (int i = 0; i < length; i++)
   {
-    input[i] = i + 0.5;
+    input[i] = i*2+1;
   }
 
 
@@ -491,7 +491,7 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
     outputBuffer[i] = clCreateBuffer(
       context_,
       CL_MEM_READ_WRITE,
-      sizeof (cl_float) * size,
+      sizeof (cl_int) * size,
       0,
       &ret);
 
@@ -665,7 +665,7 @@ void Vrip::pScan(cl_uint len,
   CHECK(clSetKernelArg(
     prefixSum_,
     2,
-    len * sizeof (cl_float),
+    len * sizeof (cl_int),
     NULL));
 
   /* 4th argument to the kernel - length */
