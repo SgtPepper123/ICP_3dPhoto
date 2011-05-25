@@ -213,8 +213,14 @@ void Vrip::Cleanup()
   // Clean up
   CHECK(clFlush(command_queue_));
   CHECK(clFinish(command_queue_));
+
   CHECK(clReleaseKernel(fuse_kernel_));
+  CHECK(clReleaseKernel(preMarching_));
   CHECK(clReleaseKernel(mainMarching_));
+  CHECK(clReleaseKernel(scanLargeArrays_));
+  CHECK(clReleaseKernel(blockAddition_));
+  CHECK(clReleaseKernel(prefixSum_));
+
   CHECK(clReleaseMemObject(volume_mem_obj_));
   CHECK(clReleaseMemObject(march_mem_obj_));
   CHECK(clReleaseMemObject(image_mem_obj_));
@@ -360,7 +366,7 @@ void Vrip::testScan()
   clFinish(command_queue_);
 
   int sum = 0;
-  for (int i=0; i<length; i++)
+  for (int i = 0; i < length; i++)
   {
     int tmp = input[i];
     input[i] = sum;
@@ -368,13 +374,15 @@ void Vrip::testScan()
   }
 
   std::cout << "Output: " << std::endl;
-  for (int i = 0; i < length; i++) {
-    if (i < 10 || i > length-10)
+  for (int i = 0; i < length; i++)
+  {
+    if (i < 10 || i > length - 10)
     {
       std::cout << "I[" << i << "] => GPU/CPU: " << output[i] << "/" << output[i] << std::endl;
     }
 
-    if (output[i] != input[i]) {
+    if (output[i] != input[i])
+    {
       std::cout << "ERROR!" << std::endl;
       exit(1);
     }
@@ -543,12 +551,13 @@ int Vrip::preFixSum(cl_mem *inputBuffer, cl_mem *output, int input_length)
   CHECK(clFinish(command_queue_));
 
   CHECK(clReleaseMemObject(tempBuffer));
-      for(int i = 0; i < (int)pass; i++)
-    {
-        if (i != 0)
-          CHECK(clReleaseMemObject(outputBuffer[i]));
-        CHECK(clReleaseMemObject(blockSumBuffer[i]));
-    }
+  
+  for (int i = 0; i < (int) pass; i++)
+  {
+    if (i != 0)
+      CHECK(clReleaseMemObject(outputBuffer[i]));
+    CHECK(clReleaseMemObject(blockSumBuffer[i]));
+  }
 
 
   *output = outputBuffer[0];
