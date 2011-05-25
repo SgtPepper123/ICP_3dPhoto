@@ -87,8 +87,8 @@ int device_stats(cl_device_id device_id)
   return CL_SUCCESS;
 }
 
-const int Volume_Size = 16;
-const float d_max = 0.05;
+const int Volume_Size = 64;
+const float d_max = 10.25;
 const float d_min = -d_max;
 const int blockSize = 1024;
 
@@ -217,23 +217,70 @@ Vrip::~Vrip()
 
 void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
 {
+  int width = new_point_cloud->width;
+  int height = new_point_cloud->height;
+  imageSize_ = width*height*4;
   float* image = (float*) malloc(imageSize_ * sizeof (float));
-  int index = 0;
-  for (int i = 0; i < Volume_Size; ++i)
-  {
-    for (int j = 0; j < Volume_Size; ++j)
-    {
-      float ii = (float) i / (float) Volume_Size;
-      float jj = (float) j / (float) Volume_Size;
-      image[index++] = ii;
-      image[index++] = jj;
-      image[index++] = (ii - 0.5f)*(ii - 0.5f) + (jj - 0.5f)*(jj - 0.5f) + 0.25;
+  Point minP;
+  minP.x = 1000.f;
+  minP.y = 1000.f;
+  minP.z = 1000.f;
+  Point maxP;
+  maxP.x = -1000.f;
+  maxP.y = -1000.f;
+  maxP.z = -1000.f;
 
-      //RBG actually not used but will be in the data
-      image[index++] = 0;
+  int index = 0;
+  for (int i = 0; i < width; ++i)
+  {
+    for (int j = 0; j < height; ++j)
+    {
+      //float ii = (float) i / (float) Volume_Size - 0.5f;
+      //float jj = (float) j / (float) Volume_Size - 0.5f;
+      const Point& p = (*new_point_cloud)(i,j);
+      if(pcl::hasValidXYZ(p))
+      {
+        image[index++] = p.x;
+        image[index++] = p.y;
+        image[index++] = p.z;///*(float)rand()*0.5/(float)RAND_MAX+0.25;//*/(ii)*(ii) + (ii)*(jj) + 0.25;
+        //std::cout << sqrt(ii*ii + jj*jj + ((ii)*(ii) + (jj)*(jj))*((ii)*(ii) + (jj)*(jj))) << " " ;
+        //RBG actually not used but will be in the data
+        image[index++] = 0.f;
+        minP.x = minP.x >= p.x ? p.x : minP.x;
+        minP.y = minP.y >= p.y ? p.y : minP.y;
+        minP.z = minP.z >= p.z ? p.z : minP.z;
+        maxP.x = maxP.x <= p.x ? p.x : maxP.x;
+        maxP.y = maxP.y <= p.y ? p.y : maxP.y;
+        maxP.z = maxP.z <= p.z ? p.z : maxP.z;
+      }
+      else
+      {
+        image[index++] = 0.f;
+        image[index++] = 0.f;
+        image[index++] = 0.f;
+        image[index++] = 0.f;
+      }
     }
+    //std::cout << std::endl;
   }
   
+  std::cout << minP << std::endl;
+  std::cout << maxP << std::endl;
+  
+  /*int i = 0;
+  for(int x = 0; x < Volume_Size; ++x)
+  {
+    for(int y = 0; y < Volume_Size; ++y)
+    {
+      i++;
+      i++;
+      std::cout << image[i++] << " ";
+      i++;
+      //std::cout << image[i++] << " - ";
+    }
+    std::cout << std::endl;
+  }*/
+
   cl_int ret = clEnqueueWriteBuffer(command_queue_, image_mem_obj_, CL_TRUE, 0,
     imageSize_ * sizeof (float), image, 0, NULL, NULL);
     
@@ -245,8 +292,10 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   ret = clSetKernelArg(fuse_kernel_, 0, sizeof (cl_mem), (void *) &volume_mem_obj_);
   ret = clSetKernelArg(fuse_kernel_, 1, sizeof (cl_mem), (void *) &image_mem_obj_);
   ret = clSetKernelArg(fuse_kernel_, 2, sizeof (int), (void *) &Volume_Size);
-  ret = clSetKernelArg(fuse_kernel_, 3, sizeof (float), (void *) &d_min);
-  ret = clSetKernelArg(fuse_kernel_, 4, sizeof (float), (void *) &d_max);
+  ret = clSetKernelArg(fuse_kernel_, 3, sizeof (int), (void *) &width);
+  ret = clSetKernelArg(fuse_kernel_, 4, sizeof (int), (void *) &height);
+  ret = clSetKernelArg(fuse_kernel_, 5, sizeof (float), (void *) &d_min);
+  ret = clSetKernelArg(fuse_kernel_, 6, sizeof (float), (void *) &d_max);
 
   // Execute the OpenCL kernel on the list
   size_t localWorkSize[] = {16, 16};

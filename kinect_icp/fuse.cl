@@ -1,25 +1,78 @@
-__constant float project[2][4] = {{525.0, 0, 319.5, 0},{525.0, 0, 319.5, 0}}; 
-/*{{525.0,      0, 319.5, 0},
-      0,  525.0, 239.5, 0},
-      0,      0,     1, 0}
-    };
-*/
-__kernel void fuse(__global float *Volume, __global float *Image, int N, float d_min, float d_max)
+__constant float project[3][4] = 
+{{525.f,      0, 319.5f, 0},
+ {    0,  525.f, 239.5f, 0},
+ {    0,      0,     1, 0}
+};
+/*__constant float project[3][4] = 
+{{1.f,    0, 0.f, 0.5},
+ {  0,  1.f, 0.f, 0.5},
+ {  0,    0, 1.f/256.f, 0}
+};*/
+
+typedef struct tag_vertex {
+	float x;
+	float y;
+	float z;
+	//float normal_x, normal_y, normal_z;
+}vertex;
+
+typedef struct tag_vertex2 {
+	float x;
+	float y;
+	//float normal_x, normal_y, normal_z;
+}vertex2;
+
+vertex2 ProjectPoint(vertex v)
 {
-    // Get the index of the current element
-    int ix = get_global_id(0);
-    int iy = get_global_id(1);
+  vertex2 result;
+  float invZ = 1.f/(project[2][0]*v.x + project[2][1]*v.y + project[2][2]*v.z + project[2][3]);
+  result.x = (project[0][0]*v.x + project[0][1]*v.y + project[0][2]*v.z + project[0][3])*invZ;
+  result.y = (project[1][0]*v.x + project[1][1]*v.y + project[1][2]*v.z + project[1][3])*invZ;
+  return result;
+}
 
-    for(int iz = 0; iz < N; ++iz)
+float Length(vertex v)
+{
+  return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+}
+
+__constant float cubemin = -0.5f;
+__constant float cubewidth = 1.f;
+
+vertex FromIndex(int x, int y, int z, int N)
+{
+  float step = cubewidth/(float)N;
+  vertex v = {(float)x*step + cubemin,(float)y*step + cubemin,(float)z*step + cubemin};
+  return v; 
+}
+
+__kernel void fuse(__global float *Volume, __global float *Image, int N, int width, int height, float d_min, float d_max)
+{
+  // Get the index of the current element
+  int ix = get_global_id(0);
+  int iy = get_global_id(1);
+
+  for(int iz = 0; iz < N; ++iz)
+  {
+    vertex v = FromIndex(ix,iy,iz,N);
+    vertex2 coords = ProjectPoint(v);
+    int Ix = (int)coords.x;
+    int Iy = (int)coords.y;
+    if(Ix >= 0 && Ix < width && Ix >= 0 && Ix < height)
     {
-      float depth = Image[4*(ix + iy*N) + 2];
-      float voxelDepth = (float)iz/(float)N;
-      float dist = max(d_min, min(d_max, voxelDepth-depth));
-      int index = 2*(ix + iy*N + iz*N*N);
-      Volume[index] = dist;
-      Volume[index+1] = 1.f;
+      int index = 4*(Ix + Iy*N);
+      vertex ref = {Image[index],Image[index + 1],Image[index + 2]};
+      if(ref.x == ref.x)
+      {
+        float depth = Length(ref);
+        float voxelDepth = Length(v);
+        float dist = max(d_min, min(d_max, voxelDepth-depth));
+        int volIndex = 2*(ix + iy*N + iz*N*N);
+        Volume[volIndex] = dist;
+        Volume[volIndex+1] = 1.f;
+      }
     }
-
+  }
 }
 
 int Index(int x, int y, int z, int N)
@@ -284,13 +337,6 @@ __constant int triTable[256][16] =
 {0, 9, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 3},
 {0, 3, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 3},
 {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 0}};
-
-typedef struct tag_vertex {
-	float x;
-	float y;
-	float z;
-	//float normal_x, normal_y, normal_z;
-}vertex;
 
 /*struct cube {
 	vertex p[8];
