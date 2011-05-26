@@ -8,6 +8,8 @@
 #include <fstream>
 
 using namespace kinect_icp;
+using std::endl;
+using std::cout;
 
 #define MAX_SOURCE_SIZE (0x100000)
 #define BLOCK_SIZE = 1024
@@ -122,7 +124,7 @@ Vrip::Vrip()
 
   // Create memory buffers on the device for each vector
   volume_mem_obj_ = clCreateBuffer(context_, CL_MEM_READ_WRITE,
-    volumeSize_ * 2 * sizeof (float), NULL, &ret);
+    volumeSize_ * 2 * sizeof (cl_float), NULL, &ret);
 
   CHECK(ret);
 
@@ -141,7 +143,7 @@ Vrip::Vrip()
 
   // Copy the lists A and B to their respective memory buffers
   CHECK(clEnqueueWriteBuffer(command_queue_, volume_mem_obj_, CL_TRUE, 0,
-    volumeSize_ * 2 * sizeof (float), volume, 0, NULL, NULL));
+    volumeSize_ * 2 * sizeof (cl_float), volume, 0, NULL, NULL));
 
   free(volume);
 
@@ -318,11 +320,15 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   CHECK(clSetKernelArg(fuse_kernel_, 5, sizeof (float), (void *) &d_min));
   CHECK(clSetKernelArg(fuse_kernel_, 6, sizeof (float), (void *) &d_max));
 
+  cout << "before fuse" << endl;
   // Execute the OpenCL kernel on the list
   size_t localWorkSize[] = {16, 16};
   size_t globalWorkSize[] = {Volume_Size, Volume_Size};
   CHECK(clEnqueueNDRangeKernel(command_queue_, fuse_kernel_, 2, NULL,
     globalWorkSize, localWorkSize, 0, NULL, NULL));
+
+  clFinish(command_queue_);
+  cout << "after fuse" << endl;
 
   /*float* volume = (float*) malloc(volumeSize_ * 2 *sizeof (float));
   CHECK(clEnqueueReadBuffer(command_queue_, volume_mem_obj_, CL_TRUE, 0,
@@ -460,6 +466,7 @@ void Vrip::marchingCubes()
   size_t globalWorkSize3D[] = {Volume_Size, Volume_Size, Volume_Size};
   CHECK(clEnqueueNDRangeKernel(command_queue_, preMarching_, 3, NULL,
     globalWorkSize3D, localWorkSize3D, 0, NULL, NULL));
+
 
   std::cout << "pre Marching cubes finished" << std::endl;
 

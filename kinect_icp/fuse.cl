@@ -1,9 +1,9 @@
-__constant float project[3][4] = 
+__constant float project[3][4] =
 {{525.f,      0, 319.5f, 0},
  {    0,  525.f, 239.5f, 0},
  {    0,      0,     1, 0}
 };
-/*__constant float project[3][4] = 
+/*__constant float project[3][4] =
 {{1.f,    0, 0.f, 0.5},
  {  0,  1.f, 0.f, 0.5},
  {  0,    0, 1.f/256.f, 0}
@@ -43,7 +43,7 @@ vertex FromIndex(int x, int y, int z, int N)
 {
   float step = cubewidth/(float)N;
   vertex v = {(float)x*step + cubemin,(float)y*step + cubemin,(float)z*step + cubemin};
-  return v; 
+  return v;
 }
 
 __kernel void fuse(__global float *Volume, __global float *Image, int N, int width, int height, float d_min, float d_max)
@@ -58,9 +58,9 @@ __kernel void fuse(__global float *Volume, __global float *Image, int N, int wid
     vertex2 coords = ProjectPoint(v);
     int Ix = (int)coords.x;
     int Iy = (int)coords.y;
-    if(Ix >= 0 && Ix < width && Ix >= 0 && Ix < height)
+    if(Ix >= 0 && Ix < width && Iy >= 0 && Iy < height)
     {
-      int index = 4*(Ix + Iy*N);
+      int index = 4*(Ix + Iy*width);
       vertex ref = {Image[index],Image[index + 1],Image[index + 2]};
       if(ref.x == ref.x)
       {
@@ -449,7 +449,7 @@ __kernel void cube(__global float *Volume, __global int* memoryNeeded, __global 
 
       //ToDo unroll
       int index = memoryNeeded[Index(ix,iy,iz,N)];
-      int vertexCount = triTable[cubeindex][15]; 
+      int vertexCount = triTable[cubeindex][15];
       int tableIndex = 0;
       for(int i = 0; i < vertexCount; ++i)
       {
