@@ -93,8 +93,8 @@ int device_stats(cl_device_id device_id)
   return CL_SUCCESS;
 }
 
-const int Volume_Size = 64;
-const float d_max = 10.25;
+const int Volume_Size = 256;
+const float d_max = 0.25;
 const float d_min = -d_max;
 const int blockSize = 1024;
 
@@ -256,7 +256,10 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
     {
       //float ii = (float) i / (float) Volume_Size - 0.5f;
       //float jj = (float) j / (float) Volume_Size - 0.5f;
-      const Point& p = (*new_point_cloud)(i,j);
+      Point p;
+      p.x = i*0.001904761904762 + 3*-0.608571428571429;
+      p.y = j*0.001904761904762 + 3*-0.456190476190476;
+      p.z = 3;
       if(pcl::hasValidXYZ(p))
       {
         image[index++] = p.x;

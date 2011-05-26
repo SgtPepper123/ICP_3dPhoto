@@ -36,13 +36,18 @@ float Length(vertex v)
   return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
 }
 
-__constant float cubemin = -0.5f;
-__constant float cubewidth = 1.f;
+__constant float cubemin_x = -3.f;
+__constant float cubewidth_x = 6.f;
+__constant float cubemin_y = -1.f;
+__constant float cubewidth_y = 3.f;
+__constant float cubemin_z = 1.f;
+__constant float cubewidth_z = 4.f;
 
 vertex FromIndex(int x, int y, int z, int N)
 {
-  float step = cubewidth/(float)N;
-  vertex v = {(float)x*step + cubemin,(float)y*step + cubemin,(float)z*step + cubemin};
+  vertex v = {(float)x*cubewidth_x/(float)N + cubemin_x,
+              (float)y*cubewidth_y/(float)N + cubemin_y,
+              (float)z*cubewidth_z/(float)N + cubemin_z};
   return v;
 }
 
@@ -71,6 +76,10 @@ __kernel void fuse(__global float *Volume, __global float *Image, int N, int wid
         Volume[volIndex] = dist;
         Volume[volIndex+1] = 1.f;
       }
+    } else {
+        int volIndex = 2*(ix + iy*N + iz*N*N);
+        Volume[volIndex] = d_min;
+        Volume[volIndex+1] = 0.f;
     }
   }
 }
