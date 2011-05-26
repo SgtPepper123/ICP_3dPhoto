@@ -353,7 +353,7 @@ void Vrip::testScan()
   cl_int ret;
   cl_mem inputBuffer;
 
-  const int length = 2048;
+  const int length = 64*64*64;
   cl_int* input;
 
   /* input buffer size */
@@ -420,11 +420,6 @@ void Vrip::testScan()
     sum += tmp;
   }
 
-  std::cout << "CPU Sum: " << sum << std::endl;
-  std::cout << "GPU Sum: " << gpu_sum << std::endl;
-
-  CHECK(gpu_sum != sum);
-
   std::cout << "Output: " << std::endl;
   for (int i = 0; i < length; i++)
   {
@@ -433,8 +428,17 @@ void Vrip::testScan()
       std::cout << "I[" << i << "] => GPU/CPU: " << output[i] << "/" << output[i] << std::endl;
     }
 
-    CHECK(output[i] != input[i]);
+    if(output[i] != input[i])
+    {
+      std::cout << "Wrong numbers at position " << i << ", GPU/CPU: " << output[i] << "," << input[i] << std::endl;
+      exit(1);
+    }
   }
+
+  std::cout << "CPU Sum: " << sum << std::endl;
+  std::cout << "GPU Sum: " << gpu_sum << std::endl;
+
+  CHECK(gpu_sum != sum);
 
   free(input);
   free(output);
