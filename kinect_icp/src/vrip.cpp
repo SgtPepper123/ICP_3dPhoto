@@ -14,7 +14,7 @@ using namespace kinect_icp;
 
 //#define TEST_LEAKS
 
-#define CHECK(value) if (value != 0) {std::cerr << "An Error(" << value << ") occurred at " << __FILE__ << ":" << __LINE__ << std::endl; exit(1);}
+#define CHECK(value) if ((value) != 0) {std::cerr << "An Error(" << (value) << ") occurred at " << __FILE__ << ":" << __LINE__ << std::endl; exit(1);}
 
 #define SEP printf("-----------------------------------------------------------\n")
 
@@ -194,7 +194,7 @@ void Vrip::loadKernel(const char* filename, int num_kernels, cl_kernel* kernels[
   clGetProgramBuildInfo(program, device_id_, CL_PROGRAM_BUILD_LOG, sizeof (buffer), buffer, &len);
 
   std::cout << buffer << std::endl;
-  
+
   CHECK(ret);
 
   for (int i = 0; i < num_kernels; i++)
@@ -284,10 +284,10 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
     }
     //std::cout << std::endl;
   }
-  
+
   std::cout << minP << std::endl;
   std::cout << maxP << std::endl;
-  
+
   /*int i = 0;
   for(int x = 0; x < Volume_Size; ++x)
   {
@@ -368,7 +368,6 @@ void Vrip::testScan()
     input[i] = i*2+1;
   }
 
-
   inputBuffer = clCreateBuffer(
     context_,
     CL_MEM_READ_WRITE,
@@ -389,11 +388,10 @@ void Vrip::testScan()
     0,
     NULL));
 
-
   /* Wait for write to finish */
   clFinish(command_queue_);
 
-  preFixSum(inputBuffer, length);
+  int gpu_sum = preFixSum(inputBuffer, length);
 
   cl_int* output;
   /* allocate memory for output buffer */
@@ -420,6 +418,11 @@ void Vrip::testScan()
     sum += tmp;
   }
 
+  std::cout << "CPU Sum: " << sum << std::endl;
+  std::cout << "GPU Sum: " << gpu_sum << std::endl;
+
+  CHECK(gpu_sum != sum);
+
   std::cout << "Output: " << std::endl;
   for (int i = 0; i < length; i++)
   {
@@ -428,11 +431,7 @@ void Vrip::testScan()
       std::cout << "I[" << i << "] => GPU/CPU: " << output[i] << "/" << output[i] << std::endl;
     }
 
-    if (output[i] != input[i])
-    {
-      std::cout << "ERROR!" << std::endl;
-      exit(1);
-    }
+    CHECK(output[i] != input[i]);
   }
 
   free(input);
@@ -599,6 +598,31 @@ int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
 
   CHECK(clReleaseMemObject(tempBuffer));
 
+
+  // Read whole sum
+  int last_index = pass-1;
+  int size = (int) (length / pow((float) blockSize, (float) last_index + 1));
+  cl_int* tmp = (cl_int*) malloc(sizeof (cl_int) * size);
+
+  /* Read the final result */
+  CHECK(clEnqueueReadBuffer(command_queue_,
+    blockSumBuffer[last_index],
+    1,
+    0,
+    size * sizeof (cl_int),
+    tmp,
+    0,
+    0,
+    NULL));
+
+  CHECK(clFinish(command_queue_));
+
+  int sum = 0;
+  for (int i = 0; i < size; i++)
+  {
+    sum +=  tmp[i];
+  }
+
   for (int i = 0; i < (int) pass; i++)
   {
     if (i != 0)
@@ -609,10 +633,9 @@ int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
 
   free(blockSumBuffer);
   free(outputBuffer);
+  free(tmp);
 
-  // TODO free everything!
-  // TODO return correct value
-  return -1;
+  return sum;
 }
 
 void Vrip::bScan(cl_uint len,
