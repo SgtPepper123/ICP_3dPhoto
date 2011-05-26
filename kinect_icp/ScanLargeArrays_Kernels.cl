@@ -13,13 +13,13 @@
  */
 
 __kernel
-void blockAddition(__global float* input, __global float* output)
+void blockAddition(__global int* input, __global int* output)
 {
 	int globalId = get_global_id(0);
 	int groupId = get_group_id(0);
 	int localId = get_local_id(0);
 
-	__local float value[1];
+	__local int value[1];
 
 	/* Only 1 thread of a group will read from global buffer */
 	if(localId == 0)
@@ -33,7 +33,7 @@ void blockAddition(__global float* input, __global float* output)
 
 
 __kernel
-void prefixSum(__global float *output, __global float *input, __local  float *block, const uint length)
+void prefixSum(__global int *output, __global int *input, __local  int *block, const uint length)
 {
 	int tid = get_local_id(0);
 
@@ -77,7 +77,7 @@ void prefixSum(__global float *output, __global float *input, __local  float *bl
 			int ai = offset*(2*tid + 1) - 1;
 			int bi = offset*(2*tid + 2) - 1;
 
-			float t = block[ai];
+			int t = block[ai];
 			block[ai] = block[bi];
 			block[bi] += t;
 		}
@@ -91,12 +91,12 @@ void prefixSum(__global float *output, __global float *input, __local  float *bl
 }
 
 __kernel
-void ScanLargeArrays(__global float *output,
-               		__global float *input,
-              		 __local  float *block,	 // Size : block_size
+void ScanLargeArrays(__global int *output,
+               		__global int *input,
+              		 __local  int *block,	 // Size : block_size
 					const uint block_size,	 // size of block
               		const uint length,	 	 // no of elements
-					 __global float *sumBuffer)  // sum of blocks
+					 __global int *sumBuffer)  // sum of blocks
 
 {
 	int tid = get_local_id(0);
@@ -149,7 +149,7 @@ void ScanLargeArrays(__global float *output,
 			int ai = offset*(2*tid + 1) - 1;
 			int bi = offset*(2*tid + 2) - 1;
 
-			float t = block[ai];
+			int t = block[ai];
 			block[ai] = block[bi];
 			block[bi] += t;
 		}
