@@ -34,7 +34,6 @@ IcpCore::IcpCore(ros::Publisher publisher)
 {
   Clouds_.reserve(1000);
 
-
   RGBValue green;
   green.Red = 0;
   green.Green = 255;
@@ -183,6 +182,34 @@ Eigen::Matrix4f IcpCore::invertedTransformation(Eigen::Matrix4f original_matrix)
   return result;
 }
 
+void IcpCore::hashedAdd(PCloud* from, PCloud* to)
+{
+  Eigen::Matrix4f inverted = invertedTransformation(lastTransformation_);
+
+  BOOST_FOREACH(pcl::PointXYZRGB& pt, from->points)
+  {
+    Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
+    pnt = inverted * pnt;
+    pt.x = pnt[0];
+    pt.y = pnt[1];
+    pt.z = pnt[2];
+
+    uint8_t first = pt.x * 100;
+    uint8_t second = pt.y * 100;
+    uint8_t third = pt.z * 100;
+    uint32_t hash_value = first + (second << 8) + (third << 16);
+    if (pcl::hasValidXYZ(pt) && point_hash.find(hash_value) == point_hash.end())
+    {
+      to->push_back(pt);
+      point_hash.insert(hash_value);
+    }
+  }
+
+  to->width = outCloud_->points.size();
+
+  ROS_DEBUG("Have %i hashed points...", to->width);
+}
+
 void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
 {
   ROS_DEBUG("Received Point Cloud");
@@ -196,28 +223,9 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
     outCloud_->sensor_origin_ = new_point_cloud->sensor_origin_;
     outCloud_->sensor_orientation_ = new_point_cloud->sensor_orientation_;
     outCloud_->is_dense = true;
-
-    BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud1_->points)
-    {
-      //      if (pcl::hasValidXYZ(pt))
-      //      cout << pt.x << "," << pt.y << "," << pt.z << " => " << int(pt.x*100)
-      //        << "," << int(pt.y*100) << "," << int(pt.z*100) << endl;
-
-      uint8_t first = pt.x * 100;
-      uint8_t second = pt.y * 100;
-      uint8_t third = pt.z * 100;
-      uint32_t hash_value = first + (second << 8) + (third << 16);
-      if (pcl::hasValidXYZ(pt) && point_hash.find(hash_value) == point_hash.end())
-      {
-        outCloud_->push_back(pt);
-        point_hash.insert(hash_value);
-      }
-    }
-
-    outCloud_->width = outCloud_->points.size();
     outCloud_->height = 1;
 
-    cout << "Got " << outCloud_->width << " valid points!" << endl;
+    hashedAdd(cloud1_, outCloud_);
 
     publisher_.publish(*outCloud_);
     return;
@@ -238,31 +246,8 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
   cout << "Average: " << totalTime_ / numComputes_ << " ms (" << totalTime_ << "/" << numComputes_ << ")" << endl;
 
   lastTransformation_ = algorithm_->GetTransformation();
-  Eigen::Matrix4f inverted = invertedTransformation(lastTransformation_);
 
-  BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud1_->points)
-  {
-    Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
-    pnt = inverted * pnt;
-    pt.x = pnt[0];
-    pt.y = pnt[1];
-    pt.z = pnt[2];
-
-    uint8_t first = pt.x * 100;
-    uint8_t second = pt.y * 100;
-    uint8_t third = pt.z * 100;
-    uint32_t hash_value = first + (second << 8) + (third << 16);
-    if (pcl::hasValidXYZ(pt) && point_hash.find(hash_value) == point_hash.end())
-    {
-      outCloud_->push_back(pt);
-      point_hash.insert(hash_value);
-    }
-  }
-
-  outCloud_->width = outCloud_->points.size();
-  outCloud_->height = 1;
-
-  cout << "Have " << outCloud_->width << " valid points!" << endl;
+  hashedAdd(cloud1_, outCloud_);
 
   publisher_.publish(*outCloud_);
 }

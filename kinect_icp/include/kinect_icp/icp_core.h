@@ -29,9 +29,9 @@ private:
   void oneIcpStep(const PCloud::ConstPtr& new_point_cloud);
   void publishDiffToStart();
   void compute(PCloud* cloud1, PCloud* cloud2, int max_iterations, int selection_amount);
-  void transformCloud(PCloud* cloud, float color, bool transformCoordinates=true);
+  void transformCloud(PCloud* cloud, float color, bool transformCoordinates = true);
   Eigen::Matrix4f invertedTransformation(Eigen::Matrix4f original_matrix);
-
+  void hashedAdd(PCloud* from, PCloud* to);
 
   //Members
   std::vector<PCloud::ConstPtr> Clouds_;
