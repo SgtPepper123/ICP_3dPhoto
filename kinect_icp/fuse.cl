@@ -417,7 +417,7 @@ __kernel void cube(__global float *Volume, __global int* memoryNeeded, __global 
 
     float step = 1.f/(float)N;
 
-    vertex vertieces[8] = {
+    vertex vertices[8] = {
     {fx,fy,fz}
     ,{fx+step,fy,fz}
     ,{fx+step,fy,fz+step}
@@ -434,18 +434,18 @@ __kernel void cube(__global float *Volume, __global int* memoryNeeded, __global 
     {
       vertex vertlist[12];
       // Find the vertices where the surface intersects the cube
-      vertlist[0] = interpolate(vertieces[0],vertieces[1],v0,v1);
-      vertlist[1] = interpolate(vertieces[1],vertieces[2],v1,v2);
-      vertlist[2] = interpolate(vertieces[2],vertieces[3],v2,v3);
-      vertlist[3] = interpolate(vertieces[3],vertieces[0],v3,v0);
-      vertlist[4] = interpolate(vertieces[4],vertieces[5],v4,v5);
-      vertlist[5] = interpolate(vertieces[5],vertieces[6],v5,v6);
-      vertlist[6] = interpolate(vertieces[6],vertieces[7],v6,v7);
-      vertlist[7] = interpolate(vertieces[7],vertieces[4],v7,v4);
-      vertlist[8] = interpolate(vertieces[0],vertieces[4],v0,v4);
-      vertlist[9] = interpolate(vertieces[1],vertieces[5],v1,v5);
-      vertlist[10] = interpolate(vertieces[2],vertieces[6],v2,v6);
-      vertlist[11] = interpolate(vertieces[3],vertieces[7],v3,v7);
+      vertlist[0] = interpolate(vertices[0],vertices[1],v0,v1);
+      vertlist[1] = interpolate(vertices[1],vertices[2],v1,v2);
+      vertlist[2] = interpolate(vertices[2],vertices[3],v2,v3);
+      vertlist[3] = interpolate(vertices[3],vertices[0],v3,v0);
+      vertlist[4] = interpolate(vertices[4],vertices[5],v4,v5);
+      vertlist[5] = interpolate(vertices[5],vertices[6],v5,v6);
+      vertlist[6] = interpolate(vertices[6],vertices[7],v6,v7);
+      vertlist[7] = interpolate(vertices[7],vertices[4],v7,v4);
+      vertlist[8] = interpolate(vertices[0],vertices[4],v0,v4);
+      vertlist[9] = interpolate(vertices[1],vertices[5],v1,v5);
+      vertlist[10] = interpolate(vertices[2],vertices[6],v2,v6);
+      vertlist[11] = interpolate(vertices[3],vertices[7],v3,v7);
 
       //ToDo unroll
       int index = memoryNeeded[Index(ix,iy,iz,N)];
