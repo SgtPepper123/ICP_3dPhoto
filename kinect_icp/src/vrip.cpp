@@ -127,12 +127,7 @@ Vrip::Vrip()
   CHECK(ret);
 
   march_mem_obj_ = clCreateBuffer(context_, CL_MEM_READ_WRITE,
-    volumeSize_ * sizeof (int), NULL, &ret);
-
-  CHECK(ret);
-
-  image_mem_obj_ = clCreateBuffer(context_, CL_MEM_READ_ONLY,
-    imageSize_ * sizeof (float), NULL, &ret);
+    volumeSize_ * sizeof (cl_int), NULL, &ret);
 
   CHECK(ret);
 
@@ -226,7 +221,6 @@ void Vrip::Cleanup()
 
   CHECK(clReleaseMemObject(volume_mem_obj_));
   CHECK(clReleaseMemObject(march_mem_obj_));
-  CHECK(clReleaseMemObject(image_mem_obj_));
   CHECK(clReleaseCommandQueue(command_queue_));
   CHECK(clReleaseContext(context_));
 }
@@ -304,12 +298,16 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
     std::cout << std::endl;
   }*/
 
+  cl_int ret;
+  image_mem_obj_ = clCreateBuffer(context_, CL_MEM_READ_ONLY,
+  imageSize_ * sizeof (float), NULL, &ret);
+
+  CHECK(ret);
+
   CHECK(clEnqueueWriteBuffer(command_queue_, image_mem_obj_, CL_TRUE, 0,
     imageSize_ * sizeof (float), image, 0, NULL, NULL));
 
-  clFinish(command_queue_);
-
-  free(image);
+  CHECK(clFinish(command_queue_));
 
   // Set the arguments of the kernel
   CHECK(clSetKernelArg(fuse_kernel_, 0, sizeof (cl_mem), (void *) &volume_mem_obj_));
@@ -346,6 +344,9 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   }*/
 
   marchingCubes();
+
+  CHECK(clReleaseMemObject(image_mem_obj_));
+    free(image);
 }
 
 void Vrip::testScan()
