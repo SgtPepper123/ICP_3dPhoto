@@ -246,10 +246,12 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   minP.x = 1000.f;
   minP.y = 1000.f;
   minP.z = 1000.f;
+  minP.rgb = 0;
   Point maxP;
   maxP.x = -1000.f;
   maxP.y = -1000.f;
   maxP.z = -1000.f;
+  maxP.rgb = 0;
 
   int index = 0;
   for (int i = 0; i < width; ++i)
