@@ -457,7 +457,7 @@ void Vrip::marchingCubes()
 
   std::cout << "pre Marching cubes finished" << std::endl;
 
-  int memoryToAllocate = preFixSum(march_mem_obj_, 1024);
+  int memoryToAllocate = preFixSum(march_mem_obj_, volumeSize_);
 
   std::cout << "Marching cubes started" << std::endl;
 
