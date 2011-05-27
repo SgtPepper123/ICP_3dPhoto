@@ -205,7 +205,7 @@ void IcpCore::hashedAdd(PCloud* from, PCloud* to)
     }
   }
 
-  to->width = outCloud_->points.size();
+  to->width = to->points.size();
 
   ROS_DEBUG("Have %i hashed points...", to->width);
 }
@@ -214,9 +214,8 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
 {
   ROS_DEBUG("Received Point Cloud");
 
-  if (!cloud1_)
+  if (!outCloud_)
   {
-    cloud1_ = new PCloud(*new_point_cloud);
     outCloud_ = new PCloud();
     outCloud_->header = new_point_cloud->header;
 
@@ -225,19 +224,19 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
     outCloud_->is_dense = true;
     outCloud_->height = 1;
 
-    hashedAdd(cloud1_, outCloud_);
+    PCloud new_cloud(*new_point_cloud);
+    hashedAdd(&new_cloud, outCloud_);
 
     publisher_.publish(*outCloud_);
     return;
   }
 
-  cloud1_ = new PCloud(*new_point_cloud);
-
   if (algorithm_)
   {
     delete algorithm_;
   }
-  algorithm_ = new IcpLocal(outCloud_, cloud1_);
+  PCloud new_cloud(*new_point_cloud);
+  algorithm_ = new IcpLocal(outCloud_, &new_cloud);
   algorithm_->SetTransformation(lastTransformation_);
   algorithm_->SetMaxIterations(200);
 
@@ -247,7 +246,7 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
 
   lastTransformation_ = algorithm_->GetTransformation();
 
-  hashedAdd(cloud1_, outCloud_);
+  hashedAdd(&new_cloud, outCloud_);
 
   publisher_.publish(*outCloud_);
 }
