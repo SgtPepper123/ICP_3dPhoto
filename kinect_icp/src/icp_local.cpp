@@ -1,8 +1,11 @@
-
-#include "kinect_icp/icp_local.h"
-#include "time.h"
 #include <Eigen/Dense>
 #include <iostream>
+#include <google/dense_hash_set>
+using google::dense_hash_set;
+
+#include "time.h"
+
+#include "kinect_icp/icp_local.h"
 
 using namespace Eigen;
 using namespace kinect_icp;
@@ -13,6 +16,8 @@ using namespace std;
 #define YELLOW "\033[33m\033[1m\033[5m"
 #define BLUE "\033[34m\033[1m\033[5m"
 #define WHITE "\E[m"
+
+//#define MinimizationDetails
 
 typedef union
 {
@@ -30,16 +35,62 @@ typedef union
 
 //#define PrintMinimizationMatrices
 
+int IcpLocal::AddToHash(Set* hash, PCloud* cloud, bool transform, bool simulate)
+{
+  int count = 0;
+
+  Set tmp;
+
+  BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud->points)
+  {
+    if (pcl::hasValidXYZ(pt))
+    {
+      Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
+
+      if (transform)
+        pnt = transformation_ * pnt;
+
+      uint8_t first = pnt(0) * HASH_RESOLUTION;
+      uint8_t second = pnt(1) * HASH_RESOLUTION;
+      uint8_t third = pnt(2) * HASH_RESOLUTION;
+      uint32_t hash_value = first + (second << HASH_SHIFT) + (third << (HASH_SHIFT*2));
+
+      if (simulate)
+      {
+        if (!(*hash)[hash_value] && !tmp[hash_value])
+        {
+          tmp.set(hash_value);
+
+          count++;
+        }
+      } else {
+        if (!(*hash)[hash_value])
+        {
+          hash->set(hash_value);
+
+          count++;
+        }
+      }
+    }
+  }
+  return count;
+}
+
 IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
   : first_(first)
   , second_(second)
   , maxIterations_(iterations)
   , selectedCount_(0)
   , transformation_(Matrix4f::Identity())
+  , bestTransformation_(Matrix4f::Identity())
   , selectionAmount_(200)
+  , maxOverlap_(0)
 {
-  //srand(time(NULL));
+//  srand(time(NULL));
   srand(42);
+
+  points1_ = AddToHash(&initial_bitset, first, false, true);
+  points2_ = AddToHash(&initial_bitset, second, false, false);
 }
 
 #define MinValidIterations 3
@@ -53,33 +104,37 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
   // start timer
   gettimeofday(&t1, NULL);
 
-  float error = std::numeric_limits<float>::max();
-  float old_error;
+  //float error = std::numeric_limits<float>::max();
+  //float old_error;
   int iterations = 1;
-  int validIterations = 0;
+  //int validIterations = 0;
   do
   {
     //cout << "IcpIteration " << iterations << ":" << endl;
-    old_error = error;
+    //old_error = error;
     //Selection();
     //Matching();
     //Rejecting();
+/*    MatchRadius_ = 15 - iterations;
+    if (MatchRadius_ < 0)
+      MatchRadius_ = 0;*/
+    MatchRadius_ = 0;
+
     SelectMatchReject();
-    error = Minimization();
-    iterations++;
-    if (GetChange() < 0.01)
+    Minimization();
+    double overlap = CalculateOverlap();
+    if (overlap > maxOverlap_)
     {
-      if (++validIterations == MinValidIterations)
-      {
-        break;
-      }
-      else
-      {
-        validIterations = 0;
-      }
+      cout << "Step " << iterations << ": " << overlap*100 << endl;
+      maxOverlap_ = overlap;
+      bestTransformation_ = transformation_;
     }
+
+    iterations++;
   }
   while (iterations < maxIterations_);
+
+  transformation_ = bestTransformation_;
 
   gettimeofday(&t2, NULL);
   elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0; // sec to ms
@@ -89,8 +144,21 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 
   return elapsedTime;
 }
-const int MatchRadius = 10;
-const int Radius = 3;
+//const int MatchRadius = 10;
+const int Radius = 5;
+
+double IcpLocal::CalculateOverlap()
+{
+  int sum = points2_;
+  sum += AddToHash(&initial_bitset, first_, true, true);
+
+  double overlap = ((points1_ + points2_)/((double)sum)) - 1;
+
+//  cout << "Count 1, 2, both: " << points1_ << "," << points2_ << "," << sum << endl;
+//  cout << "Overlap: " << overlap*100 << endl;
+
+  return overlap;
+}
 
 void IcpLocal::SelectMatchReject()
 {
@@ -109,7 +177,7 @@ void IcpLocal::SelectMatchReject()
   //average guessing
   for (int i = 0; i < 10;)
   {
-    const Point& tmp = first_->points[rand()%max];
+    const Point& tmp = first_->points[rand() % max];
     Vector4f p1(tmp.x, tmp.y, tmp.z, 1.f);
 
     p1 = transformation_ * p1;
@@ -143,7 +211,7 @@ void IcpLocal::SelectMatchReject()
   {
     MatchedPoint mp;
 
-    const Point& tmp = first_->points[rand()%max];
+    const Point& tmp = first_->points[rand() % max];
 
     if (pcl::hasValidXYZ(tmp))
     {
@@ -161,7 +229,7 @@ void IcpLocal::SelectMatchReject()
       int xmax = second_->width;
       int ymax = second_->height;
 
-      if (x < MatchRadius || y < MatchRadius || x >= xmax - MatchRadius || y >= ymax - MatchRadius)
+      if (x < MatchRadius_ || y < MatchRadius_ || x >= xmax - MatchRadius_ || y >= ymax - MatchRadius_)
       {
         continue;
       }
@@ -178,9 +246,9 @@ void IcpLocal::SelectMatchReject()
       color.float_value = tmp.rgb;
       Vector3f color1(color.Red, color.Green, color.Blue);
 
-      for (int xx = x - MatchRadius; xx <= x + MatchRadius; ++xx)
+      for (int xx = x - MatchRadius_; xx <= x + MatchRadius_; ++xx)
       {
-        for (int yy = y - MatchRadius; yy <= y + MatchRadius; ++yy)
+        for (int yy = y - MatchRadius_; yy <= y + MatchRadius_; ++yy)
         {
           const Point& SecondPoint = (*second_)(xx, yy);
           if (!pcl::hasValidXYZ(SecondPoint))
@@ -273,8 +341,6 @@ void IcpLocal::Selection()
     }
   }
 }
-
-// TODO optimize
 
 void IcpLocal::Matching()
 {
@@ -529,13 +595,66 @@ float IcpLocal::Minimization()
       TransformParams(4),
       TransformParams(5));
 
-#ifdef PrintMinimizationMatrices
-    /*cout << GREEN << "Params" << endl;
-    cout << TransformParams << WHITE << endl;
+#ifdef MinimizationDetails
+    const double PI = 3.14159265;
+    const int window = 20;
+    static list<int> last_movements(window, 10000); // list with 2 elements
 
-    cout << RED << "lastIter" << endl;
-    cout <<  Transformation << WHITE << endl;*/
+    /*cout << "Angles (Grad): " << TransformParams(0) / PI * 360. << "/" <<
+      TransformParams(1) / PI * 360. << "/" <<
+      TransformParams(2) / PI * 360. << endl;
+
+    cout << "Movement (cm): " << TransformParams(3)*100 << "/" <<
+      TransformParams(4)*100 << "/" <<
+      TransformParams(5)*100 << endl;*/
+
+    double total = Transformation.topRightCorner(3, 1).norm()*100;
+//    cout << GREEN << "Total Movement (cm): " << total << WHITE << endl;
+
+    last_movements.push_back(total);
+    last_movements.pop_front();
+
+    double sumx = 0;
+    for (int i = 0; i < window; i++)
+      sumx += i;
+    double avx = sumx / window;
+
+    double sumy = 0;
+    for (list<int>::iterator p = last_movements.begin(); p != last_movements.end(); ++p)
+    {
+      sumy += *p;
+    }
+    double avy = sumy / window;
+
+    double upper = 0;
+    int x = 0;
+    for (list<int>::iterator p = last_movements.begin(); p != last_movements.end(); ++p)
+    {
+      upper += (x - avx)*(*p - avy);
+      x++;
+    }
+
+    double lower = 0;
+    for (int i = 0; i < window; i++)
+    {
+      double diff = i - avx;
+      lower += diff*diff;
+    }
+
+    double a1 = upper / lower;
+    double a0 = avy - a1*avx;
+
+    //cout << RED << "A0/A1: " << a0 << "/" << a1 << WHITE << endl;
+    cout << a1 << endl;
 #endif
+
+    //    cout << GREEN << "Average Movement (cm): " << deviation << WHITE << endl;
+
+    //    cout << TransformParams << WHITE << endl;
+
+    //    cout << RED << "lastIter" << endl;
+    //    cout <<  Transformation << WHITE << endl;*/
+
     transformation_ = Transformation * transformation_;
 #ifdef PrintMinimizationMatrices
     cout << BLUE << "AllIter" << endl;

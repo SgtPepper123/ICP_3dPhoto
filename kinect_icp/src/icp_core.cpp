@@ -20,7 +20,7 @@ typedef union
 } RGBValue;
 
 IcpCore::IcpCore(ros::Publisher publisher)
-  : singleMerge_(false)
+  : singleMerge_(true)
   , accumulateResults_(true)
   , publisher_(publisher)
   , outCloud_(NULL)
@@ -194,9 +194,9 @@ void IcpCore::hashedAdd(PCloud* from, PCloud* to)
     pt.y = pnt[1];
     pt.z = pnt[2];
 
-    uint8_t first = pt.x * 100;
-    uint8_t second = pt.y * 100;
-    uint8_t third = pt.z * 100;
+    uint8_t first = pt.x * 1000;
+    uint8_t second = pt.y * 1000;
+    uint8_t third = pt.z * 1000;
     uint32_t hash_value = first + (second << 8) + (third << 16);
     if (pcl::hasValidXYZ(pt) && point_hash.find(hash_value) == point_hash.end())
     {
@@ -205,7 +205,7 @@ void IcpCore::hashedAdd(PCloud* from, PCloud* to)
     }
   }
 
-  to->width = outCloud_->points.size();
+  to->width = to->points.size();
 
   ROS_DEBUG("Have %i hashed points...", to->width);
 }
@@ -214,9 +214,8 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
 {
   ROS_DEBUG("Received Point Cloud");
 
-  if (!cloud1_)
+  if (!outCloud_)
   {
-    cloud1_ = new PCloud(*new_point_cloud);
     outCloud_ = new PCloud();
     outCloud_->header = new_point_cloud->header;
 
@@ -225,21 +224,23 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
     outCloud_->is_dense = true;
     outCloud_->height = 1;
 
-    hashedAdd(cloud1_, outCloud_);
+    PCloud new_cloud(*new_point_cloud);
+    hashedAdd(&new_cloud, outCloud_);
+
+    transformCloud(outCloud_, green_);
 
     publisher_.publish(*outCloud_);
     return;
   }
 
-  cloud1_ = new PCloud(*new_point_cloud);
-
-  if (algorithm_)
+  if (!cloud1_)
   {
-    delete algorithm_;
+    cloud1_ = new PCloud(*new_point_cloud);
+    transformCloud(cloud1_, red_);
+
+    algorithm_ = new IcpLocal(outCloud_, cloud1_);
+    algorithm_->SetMaxIterations(1);
   }
-  algorithm_ = new IcpLocal(outCloud_, cloud1_);
-  algorithm_->SetTransformation(lastTransformation_);
-  algorithm_->SetMaxIterations(200);
 
   numComputes_++;
   totalTime_ += algorithm_->Compute();
@@ -247,9 +248,10 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
 
   lastTransformation_ = algorithm_->GetTransformation();
 
-  hashedAdd(cloud1_, outCloud_);
+  PCloud tmp(*outCloud_);
 
-  publisher_.publish(*outCloud_);
+  hashedAdd(cloud1_, &tmp);
+  publisher_.publish(tmp);
 }
 
 void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
@@ -268,7 +270,7 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 
       cloud2_ = new PCloud(*new_point_cloud);
 
-      algorithm_ = new IcpLocal(cloud1_, cloud2_);
+      algorithm_ = new IcpLocal(cloud1_, cloud2_, 100);
     }
 
     if (outCloud_)
@@ -313,7 +315,6 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     algorithm_ = tmpAlgo;
 
     algorithm_->SetMaxIterations(200);
-
   }
 
   //algorithm.TestMinimizeTranslate();
@@ -350,7 +351,6 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     }
 
     *outCloud_ += *cloud2_;
-    algorithm_->SetMaxIterations(1);
   }
   else
   {

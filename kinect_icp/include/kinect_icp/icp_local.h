@@ -1,16 +1,23 @@
 #ifndef ICP_LOCAL
 #define ICP_LOCAL
 
-#include "ros/ros.h"
+//#include <boost/unordered_set.hpp>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
+#include "ros/ros.h"
+#include <bitset>
 
 #define ITERATION_THRESHOLD 0.01
+#define HASH_RESOLUTION 100
+#define HASH_SHIFT 8
 
 namespace kinect_icp
 {
+
 typedef pcl::PointXYZRGB Point;
 typedef pcl::PointCloud<pcl::PointXYZRGB> PCloud;
+typedef std::bitset<(1<<(HASH_SHIFT*3))> Set;
+
 
 struct MatchedPoint
 {
@@ -48,7 +55,7 @@ public:
   {
     maxIterations_ = iter;
   }
-  
+
   void SetSelectionAmount(int amount)
   {
     selectionAmount_ = amount;
@@ -68,19 +75,27 @@ private:
   std::vector< MatchedPoint > selected_;
 
   int selectedCount_;
+  int points1_;
+  int points2_;
   float average_;
   float change_;
 
   Eigen::Matrix4f transformation_;
+  Eigen::Matrix4f bestTransformation_;
 
   void SelectMatchReject();
   void Selection();
   void Matching();
   void Rejecting();
   float Minimization();
-  
-  int selectionAmount_;
+  double CalculateOverlap();
+  int AddToHash(Set* hash, PCloud* cloud, bool transform, bool simulate);
 
+  int selectionAmount_;
+  double maxOverlap_;
+  int MatchRadius_;
+  
+  Set initial_bitset;
 };
 
 }
