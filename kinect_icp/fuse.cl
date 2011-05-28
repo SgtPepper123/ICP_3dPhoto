@@ -1,8 +1,8 @@
-__constant float project[3][4] =
+/*float project[3][4] =
 {{525.f,      0, 319.5f, 0},
  {    0,  525.f, 239.5f, 0},
- {    0,      0,     1, 0}
-};
+ {    0,      0,    1.f, 0}
+};*/
 
 typedef struct tag_vertex {
 	float x;
@@ -17,12 +17,12 @@ typedef struct tag_vertex2 {
 	//float normal_x, normal_y, normal_z;
 }vertex2;
 
-vertex2 ProjectPoint(vertex v)
+vertex2 ProjectPoint(vertex v,__local float project[12])
 {
   vertex2 result;
-  float invZ = 1.f/(project[2][0]*v.x + project[2][1]*v.y + project[2][2]*v.z + project[2][3]);
-  result.x = (project[0][0]*v.x + project[0][1]*v.y + project[0][2]*v.z + project[0][3])*invZ;
-  result.y = (project[1][0]*v.x + project[1][1]*v.y + project[1][2]*v.z + project[1][3])*invZ;
+  float invZ = 1.f/(project[8]*v.x + project[9]*v.y + project[10]*v.z + project[11]);
+  result.x = (project[0]*v.x + project[1]*v.y + project[2]*v.z + project[3])*invZ;
+  result.y = (project[4]*v.x + project[5]*v.y + project[6]*v.z + project[7])*invZ;
   return result;
 }
 
@@ -31,10 +31,10 @@ float Length(vertex v)
   return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
 }
 
-__constant float cubemin_x = -1.8f;
-__constant float cubewidth_x = 2*1.8f;
-__constant float cubemin_y = -1.3f;
-__constant float cubewidth_y = 2*1.3f;
+__constant float cubemin_x = -1.f;
+__constant float cubewidth_x = 2*1.f;
+__constant float cubemin_y = -1.f;
+__constant float cubewidth_y = 2*1.f;
 __constant float cubemin_z = 0.6f;
 __constant float cubewidth_z = 2.0f;
 
@@ -46,16 +46,28 @@ vertex FromIndex(int x, int y, int z, int N)
   return v;
 }
 
-__kernel void fuse(__global float *Volume, __global float *Image, int N, int width, int height, float d_min, float d_max)
+__kernel void fuse(__global float *Volume, __global float *Image, __local float project[12], __global float* gproject, int N, int width, int height, float d_min, float d_max)
 {
   // Get the index of the current element
   int ix = get_global_id(0);
   int iy = get_global_id(1);
+  project[0] = gproject[0];
+  project[1] = gproject[1];
+  project[2] = gproject[2];
+  project[3] = gproject[3];
+  project[4] = gproject[4];
+  project[5] = gproject[5];
+  project[6] = gproject[6];
+  project[7] = gproject[7];
+  project[8] = gproject[8];
+  project[9] = gproject[9];
+  project[10] = gproject[10];
+  project[11] = gproject[11];
 
   for(int iz = 0; iz < N; ++iz)
   {
     vertex v = FromIndex(ix,iy,iz,N);
-    vertex2 coords = ProjectPoint(v);
+    vertex2 coords = ProjectPoint(v,project);
     int Ix = (int)coords.x;
     int Iy = (int)coords.y;
     if(Ix >= 0 && Ix < width-1 && Iy >= 0 && Iy < height-1)
@@ -66,7 +78,7 @@ __kernel void fuse(__global float *Volume, __global float *Image, int N, int wid
       {
         for(int y = Iy-3; y<=Iy+3; ++y)
         {
-          int index = 4*(x + y*width);
+          int index = (x + y*width);
           float val = Image[index+2];
           if(val > 0.001)
           {
@@ -77,23 +89,41 @@ __kernel void fuse(__global float *Volume, __global float *Image, int N, int wid
       }*/
       //coords.x -= (float)Ix;
       //coords.y -= (float)Iy;
-      int index0 = 4*(Ix + Iy*width);
-      /*int index1 = 4*(Ix + 1 + Iy*width);
-      int index2 = 4*(Ix + (Iy+1)*width);
-      int index3 = 4*(Ix + 1 + (Iy+1)*width);
+      int index0 = (Ix + Iy*width);
+      /*int index1 = (Ix + 1 + Iy*width);
+      int index2 = (Ix + (Iy+1)*width);
+      int index3 = (Ix + 1 + (Iy+1)*width);
       vertex ref = {mix(mix(Image[index0],Image[index1],coords.x),mix(Image[index2],Image[index3],coords.x),coords.y)
       ,mix(mix(Image[index0+1],Image[index1+1],coords.x),mix(Image[index2+1],Image[index3+1],coords.x),coords.y)
       ,mix(mix(Image[index0+2],Image[index1+2],coords.x),mix(Image[index2+2],Image[index3+2],coords.x),coords.y)};*/
 
-      float depth = Image[index0+2];
+      float depth = Image[index0];
       float voxelDepth = v.z;
       float dist = voxelDepth-depth;
-      //if(/*dist > d_min &&*/ dist < d_max)
+      
+      if(dist <= d_max)
       {
-      //float dist = max(d_min, min(d_max, voxelDepth-depth));
         int volIndex = 2*(ix + iy*N + iz*N*N);
-        Volume[volIndex] = dist;
-        Volume[volIndex+1] = 1.f;
+        float D = Volume[volIndex];
+        float W = Volume[volIndex+1];
+        if(W < 0.0001f)
+        {
+          if(dist < (d_min))
+          {
+            Volume[volIndex] = d_min;
+            Volume[volIndex+1] = 0.f;
+          }
+          else
+          {
+            Volume[volIndex] = dist;
+            Volume[volIndex+1] = 1.f;
+          }
+        }
+        else if(dist <= (d_min))
+        {
+          Volume[volIndex] = D + dist;
+          Volume[volIndex+1] = W + 1.f;
+        }
       }
     } 
   }
@@ -389,6 +419,21 @@ vertex interpolate(vertex p1, vertex p2, float valp1, float valp2)
     return p;
 }
 
+float isoValue(__global float* Volume, int x, int y, int z, int N)
+{ 
+  int index = Index(x,y,z,N)*2;
+  float D = Volume[index];
+  float W = Volume[index+1];
+  if(W<0.0001f)
+  {
+    return D;
+  }
+  else
+  {
+    return D/W;
+  }
+}
+
 __kernel void precube(__global float *Volume, __global int* memoryNeeded, int N)
 {
   // Get the index of the current element
@@ -398,14 +443,14 @@ __kernel void precube(__global float *Volume, __global int* memoryNeeded, int N)
 
   if(ix >= 0 && iy >= 0 && iz >= 0 && ix < N-1 && iy < N-1 && iz < N-1)
   {
-    float v0 = Volume[Index(ix,iy,iz,N)*2];
-    float v1 = Volume[Index(ix+1,iy,iz,N)*2];
-    float v2 = Volume[Index(ix+1,iy,iz+1,N)*2];
-    float v3 = Volume[Index(ix,iy,iz+1,N)*2];
-    float v4 = Volume[Index(ix,iy+1,iz,N)*2];
-    float v5 = Volume[Index(ix+1,iy+1,iz,N)*2];
-    float v6 = Volume[Index(ix+1,iy+1,iz+1,N)*2];
-    float v7 = Volume[Index(ix,iy+1,iz+1,N)*2];
+    float v0 = isoValue(Volume,ix,iy,iz,N);
+    float v1 = isoValue(Volume,ix+1,iy,iz,N);
+    float v2 = isoValue(Volume,ix+1,iy,iz+1,N);
+    float v3 = isoValue(Volume,ix,iy,iz+1,N);
+    float v4 = isoValue(Volume,ix,iy+1,iz,N);
+    float v5 = isoValue(Volume,ix+1,iy+1,iz,N);
+    float v6 = isoValue(Volume,ix+1,iy+1,iz+1,N);
+    float v7 = isoValue(Volume,ix,iy+1,iz+1,N);
 
     int cubeindex = ((int)(v0 > 0) << 0) | ((int)(v1 > 0) << 1) | ((int)(v2 > 0) << 2) | ((int)(v3 > 0) << 3) | ((int)(v4 > 0) << 4) | ((int)(v5 > 0) << 5) | ((int)(v6 > 0) << 6) | ((int)(v7 > 0) << 7);
 
@@ -426,14 +471,14 @@ __kernel void cube(__global float *Volume, __global int* memoryNeeded, __global 
 
   if(ix < N-1 && iy < N-1 && iz < N-1)
   {
-    float v0 = Volume[Index(ix,iy,iz,N)*2];
-    float v1 = Volume[Index(ix+1,iy,iz,N)*2];
-    float v2 = Volume[Index(ix+1,iy,iz+1,N)*2];
-    float v3 = Volume[Index(ix,iy,iz+1,N)*2];
-    float v4 = Volume[Index(ix,iy+1,iz,N)*2];
-    float v5 = Volume[Index(ix+1,iy+1,iz,N)*2];
-    float v6 = Volume[Index(ix+1,iy+1,iz+1,N)*2];
-    float v7 = Volume[Index(ix,iy+1,iz+1,N)*2];
+    float v0 = isoValue(Volume,ix,iy,iz,N);
+    float v1 = isoValue(Volume,ix+1,iy,iz,N);
+    float v2 = isoValue(Volume,ix+1,iy,iz+1,N);
+    float v3 = isoValue(Volume,ix,iy,iz+1,N);
+    float v4 = isoValue(Volume,ix,iy+1,iz,N);
+    float v5 = isoValue(Volume,ix+1,iy+1,iz,N);
+    float v6 = isoValue(Volume,ix+1,iy+1,iz+1,N);
+    float v7 = isoValue(Volume,ix,iy+1,iz+1,N);
 
     float fx = (float)ix/(float)N;
     float fy = (float)iy/(float)N;

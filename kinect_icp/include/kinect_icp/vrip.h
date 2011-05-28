@@ -43,6 +43,7 @@ private:
   cl_mem volume_mem_obj_;
   cl_mem march_mem_obj_;
   cl_mem image_mem_obj_;
+  cl_mem proj_mem_obj_;
   cl_context context_;
 
   void bScan(cl_uint len,

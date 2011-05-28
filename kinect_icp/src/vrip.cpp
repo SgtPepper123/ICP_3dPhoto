@@ -99,7 +99,7 @@ const float d_min = -d_max;
 const int blockSize = 1024;
 
 Vrip::Vrip()
-  : imageSize_(Volume_Size*Volume_Size * 4)
+  : imageSize_(Volume_Size*Volume_Size)
   , volumeSize_(Volume_Size*Volume_Size*Volume_Size)
 {
   // Get platform and device information
@@ -125,6 +125,11 @@ Vrip::Vrip()
   // Create memory buffers on the device for each vector
   volume_mem_obj_ = clCreateBuffer(context_, CL_MEM_READ_WRITE,
     volumeSize_ * 2 * sizeof (cl_float), NULL, &ret);
+
+  CHECK(ret);
+  // Create memory buffers on the device for each vector
+  proj_mem_obj_ = clCreateBuffer(context_, CL_MEM_READ_WRITE,
+    12 * sizeof (cl_float), NULL, &ret);
 
   CHECK(ret);
 
@@ -236,7 +241,7 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
 {
   int width = new_point_cloud->width;
   int height = new_point_cloud->height;
-  imageSize_ = width*height*4;
+  imageSize_ = width*height;
   float* image = (float*) malloc(imageSize_ * sizeof (float));
   Point minP;
   minP.x = 1000.f;
@@ -259,12 +264,10 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
       Point p = (*new_point_cloud)(i,j);
       if(pcl::hasValidXYZ(p))
       {
-        image[index++] = p.x;
-        image[index++] = p.y;
-        image[index++] = p.z;///*(float)rand()*0.5/(float)RAND_MAX+0.25;//*/(ii)*(ii) + (ii)*(jj) + 0.25;
-        //std::cout << sqrt(ii*ii + jj*jj + ((ii)*(ii) + (jj)*(jj))*((ii)*(ii) + (jj)*(jj))) << " " ;
-        //RBG actually not used but will be in the data
-        image[index++] = 0.f;
+        //image[index++] = p.x;
+        //image[index++] = p.y;
+        image[index++] = p.z;
+        //image[index++] = 0.f;
         minP.x = minP.x >= p.x ? p.x : minP.x;
         minP.y = minP.y >= p.y ? p.y : minP.y;
         minP.z = minP.z >= p.z ? p.z : minP.z;
@@ -274,8 +277,8 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
       }
       else
       {
-        image[index++] = 0.f;
-        image[index++] = 0.f;
+        //image[index++] = 0.f;
+        //image[index++] = 0.f;
         int radius = 1;
         float sum = 0.f;
         int count = 0;
@@ -304,7 +307,7 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
           ++fail;
           image[index++] = 0.f;
         }
-        image[index++] = 0.f;
+        //image[index++] = 0.f;
       }
     }
     //std::cout << std::endl;
@@ -325,15 +328,59 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
     imageSize_ * sizeof (float), image, 0, NULL, NULL));
 
   CHECK(clFinish(command_queue_));
+  
+  Eigen::Matrix4f M;
+
+  //std::cout << new_point_cloud->sensor_orientation_ << std::endl;
+
+  M.topLeftCorner(3, 3) = new_point_cloud->sensor_orientation_.toRotationMatrix();
+  
+  //std::cout << new_point_cloud->sensor_origin_ << std::endl;
+  
+  M.topRightCorner(4, 1) = new_point_cloud->sensor_origin_;
+ 
+  M(3,0) = 0.0f;
+  M(3,1) = 0.0f;
+  M(3,2) = 0.0f;
+  M(3,3) = 1.0f;
+  
+  Eigen::Matrix<float, 3, 4 > P;
+    P << 525.0, 0, 319.5, 0.0,
+        0, 525.0, 239.5, 0.0,
+        0, 0, 1, 0.0;
+
+  Eigen::Matrix<float, 3, 4 > PM = P*M;
+  
+  std::cout << PM << std::endl;
+ 
+  float project[12];
+  project[0] = PM(0,0);
+  project[1] = PM(0,1);
+  project[2] = PM(0,2);
+  project[3] = PM(0,3);
+  project[4] = PM(1,0);
+  project[5] = PM(1,1); 
+  project[6] = PM(1,2);
+  project[7] = PM(1,3);
+  project[8] = PM(2,0);
+  project[9] = PM(2,1);
+  project[10] = PM(2,2);
+  project[11] = PM(2,3);
+
+  // Copy the lists A and B to their respective memory buffers
+  CHECK(clEnqueueWriteBuffer(command_queue_, proj_mem_obj_, CL_TRUE, 0,
+    12 * sizeof (cl_float), project, 0, NULL, NULL));
 
   // Set the arguments of the kernel
   CHECK(clSetKernelArg(fuse_kernel_, 0, sizeof (cl_mem), (void *) &volume_mem_obj_));
   CHECK(clSetKernelArg(fuse_kernel_, 1, sizeof (cl_mem), (void *) &image_mem_obj_));
-  CHECK(clSetKernelArg(fuse_kernel_, 2, sizeof (int), (void *) &Volume_Size));
-  CHECK(clSetKernelArg(fuse_kernel_, 3, sizeof (int), (void *) &width));
-  CHECK(clSetKernelArg(fuse_kernel_, 4, sizeof (int), (void *) &height));
-  CHECK(clSetKernelArg(fuse_kernel_, 5, sizeof (float), (void *) &d_min));
-  CHECK(clSetKernelArg(fuse_kernel_, 6, sizeof (float), (void *) &d_max));
+  CHECK(clSetKernelArg(fuse_kernel_, 2, sizeof (project), NULL));
+  CHECK(clSetKernelArg(fuse_kernel_, 3, sizeof (cl_mem), (void *) &proj_mem_obj_));
+  CHECK(clSetKernelArg(fuse_kernel_, 4, sizeof (int), (void *) &Volume_Size));
+  CHECK(clSetKernelArg(fuse_kernel_, 5, sizeof (int), (void *) &width));
+  CHECK(clSetKernelArg(fuse_kernel_, 6, sizeof (int), (void *) &height));
+  CHECK(clSetKernelArg(fuse_kernel_, 7, sizeof (float), (void *) &d_min));
+  CHECK(clSetKernelArg(fuse_kernel_, 8, sizeof (float), (void *) &d_max));
 
   cout << "before fuse" << endl;
   // Execute the OpenCL kernel on the list
