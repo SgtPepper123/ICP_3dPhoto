@@ -17,6 +17,8 @@ using namespace std;
 #define BLUE "\033[34m\033[1m\033[5m"
 #define WHITE "\E[m"
 
+#define MinimizationDetails
+
 typedef union
 {
 
@@ -594,16 +596,16 @@ float IcpLocal::Minimization()
     const int window = 20;
     static list<int> last_movements(window, 10000); // list with 2 elements
 
-    cout << "Angles (Grad): " << TransformParams(0) / PI * 360. << "/" <<
+    /*cout << "Angles (Grad): " << TransformParams(0) / PI * 360. << "/" <<
       TransformParams(1) / PI * 360. << "/" <<
       TransformParams(2) / PI * 360. << endl;
 
     cout << "Movement (cm): " << TransformParams(3)*100 << "/" <<
       TransformParams(4)*100 << "/" <<
-      TransformParams(5)*100 << endl;
+      TransformParams(5)*100 << endl;*/
 
     double total = Transformation.topRightCorner(3, 1).norm()*100;
-    cout << GREEN << "Total Movement (cm): " << total << WHITE << endl;
+//    cout << GREEN << "Total Movement (cm): " << total << WHITE << endl;
 
     last_movements.push_back(total);
     last_movements.pop_front();
@@ -638,7 +640,8 @@ float IcpLocal::Minimization()
     double a1 = upper / lower;
     double a0 = avy - a1*avx;
 
-    cout << RED << "A0/A1: " << a0 << "/" << a1 << WHITE << endl;
+    //cout << RED << "A0/A1: " << a0 << "/" << a1 << WHITE << endl;
+    cout << a1 << endl;
 #endif
 
     //    cout << GREEN << "Average Movement (cm): " << deviation << WHITE << endl;
