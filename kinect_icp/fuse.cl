@@ -3,11 +3,6 @@ __constant float project[3][4] =
  {    0,  525.f, 239.5f, 0},
  {    0,      0,     1, 0}
 };
-/*__constant float project[3][4] =
-{{1.f,    0, 0.f, 0.5},
- {  0,  1.f, 0.f, 0.5},
- {  0,    0, 1.f/256.f, 0}
-};*/
 
 typedef struct tag_vertex {
 	float x;
@@ -36,18 +31,18 @@ float Length(vertex v)
   return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
 }
 
-__constant float cubemin_x = -3.f;
-__constant float cubewidth_x = 6.f;
-__constant float cubemin_y = -1.f;
-__constant float cubewidth_y = 3.f;
-__constant float cubemin_z = 1.f;
-__constant float cubewidth_z = 4.f;
+__constant float cubemin_x = -1.8f;
+__constant float cubewidth_x = 2*1.8f;
+__constant float cubemin_y = -1.3f;
+__constant float cubewidth_y = 2*1.3f;
+__constant float cubemin_z = 0.6f;
+__constant float cubewidth_z = 2.0f;
 
 vertex FromIndex(int x, int y, int z, int N)
 {
-  vertex v = {(float)x*cubewidth_x/(float)N + cubemin_x,
-              (float)y*cubewidth_y/(float)N + cubemin_y,
-              (float)z*cubewidth_z/(float)N + cubemin_z};
+  vertex v = {((float)x)*cubewidth_x/((float)N) + cubemin_x,
+              ((float)y)*cubewidth_y/((float)N) + cubemin_y,
+              ((float)z)*cubewidth_z/((float)N) + cubemin_z};
   return v;
 }
 
@@ -63,24 +58,44 @@ __kernel void fuse(__global float *Volume, __global float *Image, int N, int wid
     vertex2 coords = ProjectPoint(v);
     int Ix = (int)coords.x;
     int Iy = (int)coords.y;
-    if(Ix >= 0 && Ix < width && Iy >= 0 && Iy < height)
+    if(Ix >= 0 && Ix < width-1 && Iy >= 0 && Iy < height-1)
     {
-      int index = 4*(Ix + Iy*width);
-      vertex ref = {Image[index],Image[index + 1],Image[index + 2]};
-      if(ref.x == ref.x)
+      /*float sum = 0.f;
+      int count = 0;
+      for(int x = Ix-3; x<=Ix+3; ++x)
       {
-        float depth = Length(ref);
-        float voxelDepth = Length(v);
-        float dist = max(d_min, min(d_max, voxelDepth-depth));
+        for(int y = Iy-3; y<=Iy+3; ++y)
+        {
+          int index = 4*(x + y*width);
+          float val = Image[index+2];
+          if(val > 0.001)
+          {
+            sum += val;
+            ++count;
+          }
+        }
+      }*/
+      //coords.x -= (float)Ix;
+      //coords.y -= (float)Iy;
+      int index0 = 4*(Ix + Iy*width);
+      /*int index1 = 4*(Ix + 1 + Iy*width);
+      int index2 = 4*(Ix + (Iy+1)*width);
+      int index3 = 4*(Ix + 1 + (Iy+1)*width);
+      vertex ref = {mix(mix(Image[index0],Image[index1],coords.x),mix(Image[index2],Image[index3],coords.x),coords.y)
+      ,mix(mix(Image[index0+1],Image[index1+1],coords.x),mix(Image[index2+1],Image[index3+1],coords.x),coords.y)
+      ,mix(mix(Image[index0+2],Image[index1+2],coords.x),mix(Image[index2+2],Image[index3+2],coords.x),coords.y)};*/
+
+      float depth = Image[index0+2];
+      float voxelDepth = v.z;
+      float dist = voxelDepth-depth;
+      //if(/*dist > d_min &&*/ dist < d_max)
+      {
+      //float dist = max(d_min, min(d_max, voxelDepth-depth));
         int volIndex = 2*(ix + iy*N + iz*N*N);
         Volume[volIndex] = dist;
         Volume[volIndex+1] = 1.f;
       }
-    } else {
-        int volIndex = 2*(ix + iy*N + iz*N*N);
-        Volume[volIndex] = d_min;
-        Volume[volIndex+1] = 0.f;
-    }
+    } 
   }
 }
 
