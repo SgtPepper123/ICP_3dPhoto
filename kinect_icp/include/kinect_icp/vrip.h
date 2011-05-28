@@ -66,6 +66,8 @@ private:
 
   int imageSize_;
   int volumeSize_;
+  
+  int fuseCount_;
 };
 
 }

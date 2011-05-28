@@ -96,7 +96,11 @@ int main(int argc, char **argv)
                1.f;//sqrt(dx*dx+dy*dy+3.0*3.0);
         vec.normalize();
         Eigen::Vector3f pos;
-        pos << 0.0, 0.0, 0.0;
+        pos << 0.f, 0.f, (float)count*0.3f;
+        
+        cloud.sensor_origin_(0) = pos(0);
+        cloud.sensor_origin_(1) = pos(1);
+        cloud.sensor_origin_(2) = pos(2);
 
         //std::cout << planedist(plane, vec, pos) << std::endl;
         vec *= std::min(planedist(plane1, vec, pos),planedist(plane2, vec, pos));
@@ -116,6 +120,15 @@ int main(int argc, char **argv)
         cloud(x,y) = p;
       }
     }
+    
+    Point p1;
+    p1.x = -12;
+    p1.y = 16;
+    p1.z = 23;
+    p1.rgb = -45;
+    
+    cloud.points.push_back(p1);
+
     std::cout << cloud << std::endl;
     publisher.publish(cloud);
     std::cout << "test" << std::endl;

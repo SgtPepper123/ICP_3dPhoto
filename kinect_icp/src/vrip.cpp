@@ -94,13 +94,14 @@ int device_stats(cl_device_id device_id)
 }
 
 const int Volume_Size = 128;
-const float d_max = 1.25;
+const float d_max = 0.25;
 const float d_min = -d_max;
 const int blockSize = 1024;
 
 Vrip::Vrip()
   : imageSize_(Volume_Size*Volume_Size)
   , volumeSize_(Volume_Size*Volume_Size*Volume_Size)
+  , fuseCount_(0)
 {
   // Get platform and device information
   cl_platform_id platform_id = NULL;
@@ -239,6 +240,7 @@ Vrip::~Vrip()
 
 void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
 {
+  std::cout << *new_point_cloud << std::endl;
   int width = new_point_cloud->width;
   int height = new_point_cloud->height;
   imageSize_ = width*height;
@@ -335,7 +337,7 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
 
   M.topLeftCorner(3, 3) = new_point_cloud->sensor_orientation_.toRotationMatrix();
   
-  //std::cout << new_point_cloud->sensor_origin_ << std::endl;
+  std::cout << *(new_point_cloud->points.end()-1) << std::endl;
   
   M.topRightCorner(4, 1) = new_point_cloud->sensor_origin_;
  
@@ -415,7 +417,12 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
 
   free(volume);*/
   
-  marchingCubes();
+  if(fuseCount_ == 10)
+  {
+    marchingCubes();
+  }
+  
+  ++fuseCount_;
 
   CHECK(clReleaseMemObject(image_mem_obj_));
     free(image);
