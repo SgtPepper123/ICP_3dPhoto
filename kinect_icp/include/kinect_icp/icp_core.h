@@ -8,6 +8,8 @@
 namespace kinect_icp
 {
 
+typedef boost::unordered_set<uint32_t> unordered_set;
+
 class IcpCore
 {
 public:
@@ -23,7 +25,6 @@ public:
   bool accumulateResults_;
 
 private:
-  typedef boost::unordered_set<uint32_t> unordered_set;
   unordered_set point_hash;
 
   void oneIcpStep(const PCloud::ConstPtr& new_point_cloud);
