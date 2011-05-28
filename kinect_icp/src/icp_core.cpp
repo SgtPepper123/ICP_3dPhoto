@@ -270,7 +270,7 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 
       cloud2_ = new PCloud(*new_point_cloud);
 
-      algorithm_ = new IcpLocal(cloud1_, cloud2_, 200);
+      algorithm_ = new IcpLocal(cloud1_, cloud2_, 100);
     }
 
     if (outCloud_)

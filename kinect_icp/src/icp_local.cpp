@@ -17,7 +17,7 @@ using namespace std;
 #define BLUE "\033[34m\033[1m\033[5m"
 #define WHITE "\E[m"
 
-#define MinimizationDetails
+//#define MinimizationDetails
 
 typedef union
 {
@@ -35,9 +35,11 @@ typedef union
 
 //#define PrintMinimizationMatrices
 
-int IcpLocal::AddToHash(Set* hash, PCloud* cloud, bool transform)
+int IcpLocal::AddToHash(Set* hash, PCloud* cloud, bool transform, bool simulate)
 {
   int count = 0;
+
+  Set tmp;
 
   BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud->points)
   {
@@ -48,16 +50,26 @@ int IcpLocal::AddToHash(Set* hash, PCloud* cloud, bool transform)
       if (transform)
         pnt = transformation_ * pnt;
 
-      uint8_t first = pnt(0) * hashResolution_;
-      uint8_t second = pnt(1) * hashResolution_;
-      uint8_t third = pnt(2) * hashResolution_;
-      uint32_t hash_value = first + (second << 8) + (third << 16);
+      uint8_t first = pnt(0) * HASH_RESOLUTION;
+      uint8_t second = pnt(1) * HASH_RESOLUTION;
+      uint8_t third = pnt(2) * HASH_RESOLUTION;
+      uint32_t hash_value = first + (second << HASH_SHIFT) + (third << (HASH_SHIFT*2));
 
-      if (hash->find(hash_value) == hash->end())
+      if (simulate)
       {
-        hash->insert(hash_value);
+        if (!(*hash)[hash_value] && !tmp[hash_value])
+        {
+          tmp.set(hash_value);
 
-        count++;
+          count++;
+        }
+      } else {
+        if (!(*hash)[hash_value])
+        {
+          hash->set(hash_value);
+
+          count++;
+        }
       }
     }
   }
@@ -72,18 +84,13 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
   , transformation_(Matrix4f::Identity())
   , bestTransformation_(Matrix4f::Identity())
   , selectionAmount_(200)
-  , hashResolution_(100)
   , maxOverlap_(0)
 {
 //  srand(time(NULL));
   srand(42);
 
-  Set hash1, hash2;
-  hash1.set_empty_key(-1);
-  hash2.set_empty_key(-1);
-
-  points1_ = AddToHash(&hash1, first, false);
-  points2_ = AddToHash(&hash2, second, false);
+  points1_ = AddToHash(&initial_bitset, first, false, true);
+  points2_ = AddToHash(&initial_bitset, second, false, false);
 }
 
 #define MinValidIterations 3
@@ -142,11 +149,8 @@ const int Radius = 5;
 
 double IcpLocal::CalculateOverlap()
 {
-  Set hash;
-  hash.set_empty_key(-1);
-  int sum = 0;
-  sum += AddToHash(&hash, first_, true);
-  sum += AddToHash(&hash, second_, false);
+  int sum = points2_;
+  sum += AddToHash(&initial_bitset, first_, true, true);
 
   double overlap = ((points1_ + points2_)/((double)sum)) - 1;
 

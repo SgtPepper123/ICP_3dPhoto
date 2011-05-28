@@ -5,26 +5,18 @@
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
 #include "ros/ros.h"
-#include <google/dense_hash_set>
-
-#include <tr1/unordered_map>
+#include <bitset>
 
 #define ITERATION_THRESHOLD 0.01
+#define HASH_RESOLUTION 100
+#define HASH_SHIFT 8
 
 namespace kinect_icp
 {
 
-struct eqstr
-{
-  bool operator()(uint64_t s1, uint64_t s2) const
-  {
-    return (s1 == s2);
-  }
-};
-
 typedef pcl::PointXYZRGB Point;
 typedef pcl::PointCloud<pcl::PointXYZRGB> PCloud;
-typedef google::dense_hash_set<uint64_t, std::tr1::hash<uint64_t>, eqstr> Set;
+typedef std::bitset<(1<<(HASH_SHIFT*3))> Set;
 
 
 struct MatchedPoint
@@ -97,12 +89,13 @@ private:
   void Rejecting();
   float Minimization();
   double CalculateOverlap();
-  int AddToHash(Set *hash, PCloud* cloud, bool transform);
+  int AddToHash(Set* hash, PCloud* cloud, bool transform, bool simulate);
 
   int selectionAmount_;
-  int hashResolution_;
   double maxOverlap_;
   int MatchRadius_;
+  
+  Set initial_bitset;
 };
 
 }
