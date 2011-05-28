@@ -1,18 +1,31 @@
 #ifndef ICP_LOCAL
 #define ICP_LOCAL
 
-#include <boost/unordered_set.hpp>
+//#include <boost/unordered_set.hpp>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
 #include "ros/ros.h"
+#include <google/dense_hash_set>
+
+#include <tr1/unordered_map>
 
 #define ITERATION_THRESHOLD 0.01
 
 namespace kinect_icp
 {
+
+struct eqstr
+{
+  bool operator()(uint64_t s1, uint64_t s2) const
+  {
+    return (s1 == s2);
+  }
+};
+
 typedef pcl::PointXYZRGB Point;
 typedef pcl::PointCloud<pcl::PointXYZRGB> PCloud;
-typedef boost::unordered_set<uint32_t> unordered_set;
+typedef google::dense_hash_set<uint64_t, std::tr1::hash<uint64_t>, eqstr> Set;
+
 
 struct MatchedPoint
 {
@@ -76,17 +89,20 @@ private:
   float change_;
 
   Eigen::Matrix4f transformation_;
+  Eigen::Matrix4f bestTransformation_;
 
   void SelectMatchReject();
   void Selection();
   void Matching();
   void Rejecting();
   float Minimization();
-  void CalculateOverlap();
-  int AddToHash(unordered_set* hash, PCloud* cloud, bool transform);
+  double CalculateOverlap();
+  int AddToHash(Set *hash, PCloud* cloud, bool transform);
 
   int selectionAmount_;
   int hashResolution_;
+  double maxOverlap_;
+  int MatchRadius_;
 };
 
 }

@@ -32,6 +32,7 @@ rosbuild_add_executable(point_cloud_collector 	src/point_cloud_collector.cpp
 rosbuild_add_executable(point_cloud_fusor 	src/point_cloud_fusor.cpp
 												src/vrip.cpp)
 rosbuild_add_executable(point_cloud_creator 	src/point_cloud_creator.cpp)
+
 # This is only required for the script to work in the version control
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}")
 

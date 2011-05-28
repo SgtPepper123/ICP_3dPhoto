@@ -240,7 +240,6 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
 
     algorithm_ = new IcpLocal(outCloud_, cloud1_);
     algorithm_->SetMaxIterations(1);
-
   }
 
   numComputes_++;
@@ -271,7 +270,7 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
 
       cloud2_ = new PCloud(*new_point_cloud);
 
-      algorithm_ = new IcpLocal(cloud1_, cloud2_);
+      algorithm_ = new IcpLocal(cloud1_, cloud2_, 10);
     }
 
     if (outCloud_)
@@ -316,7 +315,6 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     algorithm_ = tmpAlgo;
 
     algorithm_->SetMaxIterations(200);
-
   }
 
   //algorithm.TestMinimizeTranslate();
@@ -353,7 +351,6 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     }
 
     *outCloud_ += *cloud2_;
-    algorithm_->SetMaxIterations(1);
   }
   else
   {

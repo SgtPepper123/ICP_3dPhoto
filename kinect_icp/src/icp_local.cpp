@@ -1,5 +1,7 @@
 #include <Eigen/Dense>
 #include <iostream>
+#include <google/dense_hash_set>
+using google::dense_hash_set;
 
 #include "time.h"
 
@@ -31,27 +33,30 @@ typedef union
 
 //#define PrintMinimizationMatrices
 
-int IcpLocal::AddToHash(unordered_set* hash, PCloud* cloud, bool transform)
+int IcpLocal::AddToHash(Set* hash, PCloud* cloud, bool transform)
 {
   int count = 0;
 
   BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud->points)
   {
-    Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
-
-    if (transform)
-      pnt = transformation_ * pnt;
-
-    uint8_t first = pnt(0) * hashResolution_;
-    uint8_t second = pnt(1) * hashResolution_;
-    uint8_t third = pnt(2) * hashResolution_;
-    uint32_t hash_value = first + (second << 8) + (third << 16);
-
-    if (pcl::hasValidXYZ(pt) && hash->find(hash_value) == hash->end())
+    if (pcl::hasValidXYZ(pt))
     {
-      hash->insert(hash_value);
+      Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
 
-      count++;
+      if (transform)
+        pnt = transformation_ * pnt;
+
+      uint8_t first = pnt(0) * hashResolution_;
+      uint8_t second = pnt(1) * hashResolution_;
+      uint8_t third = pnt(2) * hashResolution_;
+      uint32_t hash_value = first + (second << 8) + (third << 16);
+
+      if (hash->find(hash_value) == hash->end())
+      {
+        hash->insert(hash_value);
+
+        count++;
+      }
     }
   }
   return count;
@@ -63,13 +68,17 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
   , maxIterations_(iterations)
   , selectedCount_(0)
   , transformation_(Matrix4f::Identity())
-  , selectionAmount_(500)
+  , bestTransformation_(Matrix4f::Identity())
+  , selectionAmount_(200)
   , hashResolution_(100)
+  , maxOverlap_(0)
 {
-  //srand(time(NULL));
+//  srand(time(NULL));
   srand(42);
 
-  unordered_set hash1, hash2;
+  Set hash1, hash2;
+  hash1.set_empty_key(-1);
+  hash2.set_empty_key(-1);
 
   points1_ = AddToHash(&hash1, first, false);
   points2_ = AddToHash(&hash2, second, false);
@@ -97,12 +106,26 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
     //Selection();
     //Matching();
     //Rejecting();
+/*    MatchRadius_ = 15 - iterations;
+    if (MatchRadius_ < 0)
+      MatchRadius_ = 0;*/
+    MatchRadius_ = 0;
+
     SelectMatchReject();
     Minimization();
-    CalculateOverlap();
+    double overlap = CalculateOverlap();
+    if (overlap > maxOverlap_)
+    {
+      cout << "Step " << iterations << ": " << overlap*100 << endl;
+      maxOverlap_ = overlap;
+      bestTransformation_ = transformation_;
+    }
+
     iterations++;
   }
   while (iterations < maxIterations_);
+
+  transformation_ = bestTransformation_;
 
   gettimeofday(&t2, NULL);
   elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0; // sec to ms
@@ -112,18 +135,23 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 
   return elapsedTime;
 }
-const int MatchRadius = 0;
-const int Radius = 8;
+//const int MatchRadius = 10;
+const int Radius = 5;
 
-void IcpLocal::CalculateOverlap()
+double IcpLocal::CalculateOverlap()
 {
-  unordered_set hash;
+  Set hash;
+  hash.set_empty_key(-1);
   int sum = 0;
   sum += AddToHash(&hash, first_, true);
   sum += AddToHash(&hash, second_, false);
 
-  cout << "Count 1, 2, both: " << points1_ << "," << points2_ << "," << sum << endl;
-  cout << "Overlap: " << (1 - sum / ((double) points1_ + points2_))*100 << endl;
+  double overlap = ((points1_ + points2_)/((double)sum)) - 1;
+
+//  cout << "Count 1, 2, both: " << points1_ << "," << points2_ << "," << sum << endl;
+//  cout << "Overlap: " << overlap*100 << endl;
+
+  return overlap;
 }
 
 void IcpLocal::SelectMatchReject()
@@ -195,7 +223,7 @@ void IcpLocal::SelectMatchReject()
       int xmax = second_->width;
       int ymax = second_->height;
 
-      if (x < MatchRadius || y < MatchRadius || x >= xmax - MatchRadius || y >= ymax - MatchRadius)
+      if (x < MatchRadius_ || y < MatchRadius_ || x >= xmax - MatchRadius_ || y >= ymax - MatchRadius_)
       {
         continue;
       }
@@ -212,9 +240,9 @@ void IcpLocal::SelectMatchReject()
       color.float_value = tmp.rgb;
       Vector3f color1(color.Red, color.Green, color.Blue);
 
-      for (int xx = x - MatchRadius; xx <= x + MatchRadius; ++xx)
+      for (int xx = x - MatchRadius_; xx <= x + MatchRadius_; ++xx)
       {
-        for (int yy = y - MatchRadius; yy <= y + MatchRadius; ++yy)
+        for (int yy = y - MatchRadius_; yy <= y + MatchRadius_; ++yy)
         {
           const Point& SecondPoint = (*second_)(xx, yy);
           if (!pcl::hasValidXYZ(SecondPoint))
@@ -561,10 +589,9 @@ float IcpLocal::Minimization()
       TransformParams(4),
       TransformParams(5));
 
+#ifdef MinimizationDetails
     const double PI = 3.14159265;
-
     const int window = 20;
-
     static list<int> last_movements(window, 10000); // list with 2 elements
 
     cout << "Angles (Grad): " << TransformParams(0) / PI * 360. << "/" <<
@@ -607,12 +634,12 @@ float IcpLocal::Minimization()
       double diff = i - avx;
       lower += diff*diff;
     }
-    cout << "lower" << lower << endl;
 
     double a1 = upper / lower;
     double a0 = avy - a1*avx;
 
     cout << RED << "A0/A1: " << a0 << "/" << a1 << WHITE << endl;
+#endif
 
     //    cout << GREEN << "Average Movement (cm): " << deviation << WHITE << endl;
 
