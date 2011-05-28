@@ -3,11 +3,6 @@ __constant float project[3][4] =
  {    0,  525.f, 239.5f, 0},
  {    0,      0,     1, 0}
 };
-/*__constant float project[3][4] =
-{{1.f,    0, 0.f, 0.5},
- {  0,  1.f, 0.f, 0.5},
- {  0,    0, 1.f/256.f, 0}
-};*/
 
 typedef struct tag_vertex {
 	float x;
@@ -22,11 +17,10 @@ typedef struct tag_vertex2 {
 	//float normal_x, normal_y, normal_z;
 }vertex2;
 
-vertex ProjectPoint(vertex v)
+vertex2 ProjectPoint(vertex v)
 {
-  vertex result;
-  result.z = (project[2][0]*v.x + project[2][1]*v.y + project[2][2]*v.z + project[2][3]);
-  float invZ = 1.f/result.z;
+  vertex2 result;
+  float invZ = 1.f/(project[2][0]*v.x + project[2][1]*v.y + project[2][2]*v.z + project[2][3]);
   result.x = (project[0][0]*v.x + project[0][1]*v.y + project[0][2]*v.z + project[0][3])*invZ;
   result.y = (project[1][0]*v.x + project[1][1]*v.y + project[1][2]*v.z + project[1][3])*invZ;
   return result;
@@ -61,14 +55,14 @@ __kernel void fuse(__global float *Volume, __global float *Image, int N, int wid
   for(int iz = 0; iz < N; ++iz)
   {
     vertex v = FromIndex(ix,iy,iz,N);
-    vertex coords = ProjectPoint(v);
+    vertex2 coords = ProjectPoint(v);
     int Ix = (int)coords.x;
     int Iy = (int)coords.y;
     if(Ix >= 0 && Ix < width-1 && Iy >= 0 && Iy < height-1)
     {
-      float sum = 0.f;
+      /*float sum = 0.f;
       int count = 0;
-      /*for(int x = Ix-3; x<=Ix+3; ++x)
+      for(int x = Ix-3; x<=Ix+3; ++x)
       {
         for(int y = Iy-3; y<=Iy+3; ++y)
         {
@@ -89,19 +83,17 @@ __kernel void fuse(__global float *Volume, __global float *Image, int N, int wid
       int index3 = 4*(Ix + 1 + (Iy+1)*width);
       vertex ref = {mix(mix(Image[index0],Image[index1],coords.x),mix(Image[index2],Image[index3],coords.x),coords.y)
       ,mix(mix(Image[index0+1],Image[index1+1],coords.x),mix(Image[index2+1],Image[index3+1],coords.x),coords.y)
-      ,mix(mix(Image[index0+2],Image[index1+2],coords.x),mix(Image[index2+2],Image[index3+2],coords.x),coords.y)};
-      if(true)*/
+      ,mix(mix(Image[index0+2],Image[index1+2],coords.x),mix(Image[index2+2],Image[index3+2],coords.x),coords.y)};*/
+
+      float depth = Image[index0+2];
+      float voxelDepth = v.z;
+      float dist = voxelDepth-depth;
+      //if(/*dist > d_min &&*/ dist < d_max)
       {
-        float depth = Image[index0+2];
-        float voxelDepth = coords.z;
-        float dist = voxelDepth-depth;
-        //if(/*dist > d_min &&*/ dist < d_max)
-        {
-        //float dist = max(d_min, min(d_max, voxelDepth-depth));
-          int volIndex = 2*(ix + iy*N + iz*N*N);
-          Volume[volIndex] = dist;
-          Volume[volIndex+1] = 1.f;
-        }
+      //float dist = max(d_min, min(d_max, voxelDepth-depth));
+        int volIndex = 2*(ix + iy*N + iz*N*N);
+        Volume[volIndex] = dist;
+        Volume[volIndex+1] = 1.f;
       }
     } 
   }

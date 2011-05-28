@@ -256,12 +256,7 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   {
     for (int i = 0; i < width; ++i)
     {
-      //float ii = (float) i / (float) Volume_Size - 0.5f;
-      //float jj = (float) j / (float) Volume_Size - 0.5f;
       Point p = (*new_point_cloud)(i,j);
-      float dx = (float)i*0.001904761904762 + 3.0*-0.608571428571429;
-      float dy = (float)j*0.001904761904762 + 3.0*-0.456190476190476;
-      float dz = 3.0;//sqrt(dx*dx+dy*dy+3.0*3.0);
       if(pcl::hasValidXYZ(p))
       {
         image[index++] = p.x;
@@ -282,7 +277,6 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
         image[index++] = 0.f;
         image[index++] = 0.f;
         int radius = 1;
-        bool found = false;
         float sum = 0.f;
         int count = 0;
         while(i-radius>=0 && i+radius<width && j-radius>=0 && j+radius<height && count == 0)
@@ -294,7 +288,7 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
               Point p = (*new_point_cloud)(x,y);
               if(pcl::hasValidXYZ(p))
               {
-                sum += sqrt(dx*dx+dy*dy+dz*dz);
+                sum += sqrt(p.x*p.x+p.y*p.y+p.z*p.z);
                 ++count;
               }
             }
@@ -320,20 +314,6 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
 
   std::cout << minP << std::endl;
   std::cout << maxP << std::endl;
-
-  /*int i = 0;
-  for(int x = 0; x < Volume_Size; ++x)
-  {
-    for(int y = 0; y < Volume_Size; ++y)
-    {
-      i++;
-      i++;
-      std::cout << image[i++] << " ";
-      i++;
-      //std::cout << image[i++] << " - ";
-    }
-    std::cout << std::endl;
-  }*/
 
   cl_int ret;
   image_mem_obj_ = clCreateBuffer(context_, CL_MEM_READ_ONLY,
