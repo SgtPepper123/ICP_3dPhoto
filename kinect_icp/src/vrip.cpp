@@ -93,8 +93,8 @@ int device_stats(cl_device_id device_id)
   return CL_SUCCESS;
 }
 
-const int Volume_Size = 256;
-const float d_max = 0.25;
+const int Volume_Size = 128;
+const float d_max = 1.25;
 const float d_min = -d_max;
 const int blockSize = 1024;
 
@@ -250,16 +250,18 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   maxP.rgb = 0;
 
   int index = 0;
-  for (int i = 0; i < width; ++i)
+  int fail = 0;
+  std::cout << width << " " << height << std::endl;
+  for (int j = 0; j < height; ++j)
   {
-    for (int j = 0; j < height; ++j)
+    for (int i = 0; i < width; ++i)
     {
       //float ii = (float) i / (float) Volume_Size - 0.5f;
       //float jj = (float) j / (float) Volume_Size - 0.5f;
-      Point p;
-      p.x = i*0.001904761904762 + 3*-0.608571428571429;
-      p.y = j*0.001904761904762 + 3*-0.456190476190476;
-      p.z = 3;
+      Point p = (*new_point_cloud)(i,j);
+      float dx = (float)i*0.001904761904762 + 3.0*-0.608571428571429;
+      float dy = (float)j*0.001904761904762 + 3.0*-0.456190476190476;
+      float dz = 3.0;//sqrt(dx*dx+dy*dy+3.0*3.0);
       if(pcl::hasValidXYZ(p))
       {
         image[index++] = p.x;
@@ -279,12 +281,42 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
       {
         image[index++] = 0.f;
         image[index++] = 0.f;
-        image[index++] = 0.f;
+        int radius = 1;
+        bool found = false;
+        float sum = 0.f;
+        int count = 0;
+        while(i-radius>=0 && i+radius<width && j-radius>=0 && j+radius<height && count == 0)
+        {
+          for(int x = i-radius; x<=i+radius; x+=radius*2)
+          {
+            for(int y = j-radius; y<=j+radius; y+=radius*2)
+            {
+              Point p = (*new_point_cloud)(x,y);
+              if(pcl::hasValidXYZ(p))
+              {
+                sum += sqrt(dx*dx+dy*dy+dz*dz);
+                ++count;
+              }
+            }
+          }
+          ++radius;
+        }
+        if(count)
+        {
+          image[index++] = sum/(float)count;
+        }
+        else
+        {
+          ++fail;
+          image[index++] = 0.f;
+        }
         image[index++] = 0.f;
       }
     }
     //std::cout << std::endl;
   }
+  
+  std::cout << fail << " " << (float)fail/(float)(width*height) << std::endl;
 
   std::cout << minP << std::endl;
   std::cout << maxP << std::endl;
@@ -330,12 +362,14 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   CHECK(clEnqueueNDRangeKernel(command_queue_, fuse_kernel_, 2, NULL,
     globalWorkSize, localWorkSize, 0, NULL, NULL));
 
-  clFinish(command_queue_);
+  CHECK(clFinish(command_queue_));
   cout << "after fuse" << endl;
 
   /*float* volume = (float*) malloc(volumeSize_ * 2 *sizeof (float));
   CHECK(clEnqueueReadBuffer(command_queue_, volume_mem_obj_, CL_TRUE, 0,
-    volumeSize_ * 2 * sizeof (float), volume, 0, NULL, NULL);
+    volumeSize_ * 2 * sizeof (float), volume, 0, NULL, NULL));
+
+  CHECK(clFinish(command_queue_));
 
   int i = 0;
   for(int x = 0; x < Volume_Size; ++x)
@@ -350,8 +384,10 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
       std::cout << std::endl;
     }
     std::cout << std::endl;
-  }*/
+  }
 
+  free(volume);*/
+  
   marchingCubes();
 
   CHECK(clReleaseMemObject(image_mem_obj_));
@@ -401,7 +437,7 @@ void Vrip::testScan()
     NULL));
 
   /* Wait for write to finish */
-  clFinish(command_queue_);
+  CHECK(clFinish(command_queue_));
 
   int gpu_sum = preFixSum(inputBuffer, length);
 
@@ -420,7 +456,7 @@ void Vrip::testScan()
     0,
     NULL));
 
-  clFinish(command_queue_);
+  CHECK(clFinish(command_queue_));
 
   int sum = 0;
   for (int i = 0; i < length; i++)
@@ -470,12 +506,13 @@ void Vrip::marchingCubes()
   CHECK(clEnqueueNDRangeKernel(command_queue_, preMarching_, 3, NULL,
     globalWorkSize3D, localWorkSize3D, 0, NULL, NULL));
 
+  CHECK(clFinish(command_queue_));
 
   std::cout << "pre Marching cubes finished" << std::endl;
 
   int memoryToAllocate = preFixSum(march_mem_obj_, volumeSize_);
 
-  std::cout << "Marching cubes started" << std::endl;
+  std::cout << "Marching cubes started " << memoryToAllocate << std::endl;
 
   cl_int ret;
   cl_mem out_mem_obj = clCreateBuffer(context_, CL_MEM_WRITE_ONLY,
@@ -497,7 +534,7 @@ void Vrip::marchingCubes()
   CHECK(clEnqueueReadBuffer(command_queue_, out_mem_obj, CL_TRUE, 0,
     memoryToAllocate * sizeof (float), hostOut, 0, NULL, NULL));
 
-  clFinish(command_queue_);
+  CHECK(clFinish(command_queue_));
 
   std::cout << "Marching cubes finished" << std::endl;
 
@@ -526,10 +563,35 @@ void Vrip::marchingCubes()
 
 int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
 {
-  cl_uint pass;
+  std::cout << input_length << " prefixSum" << std::endl;
+
+  int* input = (int*) malloc(input_length *sizeof (int));
+  CHECK(clEnqueueReadBuffer(command_queue_, inputBuffer, CL_TRUE, 0,
+    input_length * sizeof (int), input, 0, NULL, NULL));
+
+  CHECK(clFinish(command_queue_));
+
+  int sum = 0;
+  for (int i = 0; i < input_length; i++)
+  {
+    int tmp = input[i];
+    input[i] = sum;
+    sum += tmp;
+  }
+  
+  CHECK(clEnqueueWriteBuffer(command_queue_, inputBuffer, CL_TRUE, 0,
+    input_length * sizeof (int), input, 0, NULL, NULL));
+
+  CHECK(clFinish(command_queue_));
+
+  free(input);
+  
+  return sum;
+
+/*  cl_uint pass;
   cl_uint length = input_length;
 
-  /* Calculate number of passes required */
+  // Calculate number of passes required 
   float t = log((float) length) / log((float) blockSize);
   pass = (cl_uint) t;
 
@@ -539,12 +601,12 @@ int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
     pass--;
   }
 
-  cl_mem *outputBuffer; /**< Array of output buffers */
-  cl_mem *blockSumBuffer; /**< Array of block sum buffers */
+  cl_mem *outputBuffer; //< Array of output buffers
+  cl_mem *blockSumBuffer; //< Array of block sum buffers
   cl_int ret;
   cl_mem tempBuffer;
 
-  /* Allocate output buffers */
+  // Allocate output buffers 
   outputBuffer = (cl_mem*) malloc(pass * sizeof (cl_mem));
   outputBuffer[0] = inputBuffer;
 
@@ -561,7 +623,7 @@ int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
     CHECK(ret);
   }
 
-  /* Allocate blockSumBuffers */
+  // Allocate blockSumBuffers
   blockSumBuffer = (cl_mem*) malloc(pass * sizeof (cl_mem));
 
   for (int i = 0; i < (int) pass; i++)
@@ -577,7 +639,7 @@ int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
     CHECK(ret);
   }
 
-  /* Create a tempBuffer on device */
+  // Create a tempBuffer on device
   int tempLength = (int) (length / pow((float) blockSize, (float) pass));
 
   tempBuffer = clCreateBuffer(context_,
@@ -587,7 +649,7 @@ int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
     &ret);
   CHECK(ret);
 
-  /* Do block-wise sum */
+  // Do block-wise sum 
   bScan(length, &inputBuffer, &outputBuffer[0], &blockSumBuffer[0]);
 
   for (int i = 1; i < (int) pass; i++)
@@ -598,10 +660,10 @@ int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
       &blockSumBuffer[i]);
   }
 
-  /* Do scan to tempBuffer */
+  // Do scan to tempBuffer
   pScan(tempLength, &blockSumBuffer[pass - 1], &tempBuffer);
 
-  /* Do block-addition on outputBuffers */
+  // Do block-addition on outputBuffers
   bAddition((cl_uint) (length / pow((float) blockSize, (float) (pass - 1))),
     &tempBuffer, &outputBuffer[pass - 1]);
 
@@ -621,7 +683,7 @@ int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
   int size = (int) (length / pow((float) blockSize, (float) last_index + 1));
   cl_int* tmp = (cl_int*) malloc(sizeof (cl_int) * size);
 
-  /* Read the final result */
+  // Read the final result
   CHECK(clEnqueueReadBuffer(command_queue_,
     blockSumBuffer[last_index],
     1,
@@ -652,7 +714,7 @@ int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
   free(outputBuffer);
   free(tmp);
 
-  return sum;
+  return sum;*/
 }
 
 void Vrip::bScan(cl_uint len,

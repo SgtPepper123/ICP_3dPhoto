@@ -52,7 +52,7 @@ int main(int argc, char **argv)
   // Create a Publisher for the final, merged images
   ros::Publisher publisher = n.advertise< PCloud const >("/camera/rgb/points", 10);
   
-  ros::Rate loop_rate(0.1);
+  ros::Rate loop_rate(0.5);
   
   int count = 0;
   while (ros::ok())
@@ -78,9 +78,13 @@ int main(int argc, char **argv)
     color.Green = 0;
     color.Blue = 255;
 
-    Plane plane;
-    plane.dir << 0.0, 0.0, -1.0;
-    plane.alpha = 3.0;
+    Plane plane1;
+    plane1.dir << 0.0, 0.0, -1.0;
+    plane1.alpha = 3.0;
+    Plane plane2;
+    plane2.dir << 0.0, -1.0, -1.0;
+    plane2.dir.normalize();
+    plane2.alpha = 2.0;
     
     for(int x = 0; x < cloud.width; ++x)
     {
@@ -94,14 +98,15 @@ int main(int argc, char **argv)
         Eigen::Vector3f pos;
         pos << 0.0, 0.0, 0.0;
 
-        vec *= planedist(plane, vec, pos);
+        //std::cout << planedist(plane, vec, pos) << std::endl;
+        vec *= std::min(planedist(plane1, vec, pos),planedist(plane2, vec, pos));
 
-        Matrix<float, 3, 3 > P;
+        /*Matrix<float, 3, 3 > P;
         P << 525.0, 0, 319.5,
           0, 525.0, 239.5,
-          0, 0, 1;
+          0, 0, 1;*/
           
-        //std::cout << P*vec/3.f << std::endl;
+        //std::cout << vec << std::endl;
 
         Point p;
         p.x = vec(0);
