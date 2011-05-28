@@ -36,7 +36,7 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
   , maxIterations_(iterations)
   , selectedCount_(0)
   , transformation_(Matrix4f::Identity())
-  , selectionAmount_(200)
+  , selectionAmount_(500)
 {
   //srand(time(NULL));
   srand(42);
@@ -89,8 +89,8 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 
   return elapsedTime;
 }
-const int MatchRadius = 10;
-const int Radius = 3;
+const int MatchRadius = 0;
+const int Radius = 8;
 
 void IcpLocal::SelectMatchReject()
 {
