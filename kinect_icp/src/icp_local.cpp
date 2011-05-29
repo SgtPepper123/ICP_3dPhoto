@@ -97,6 +97,8 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
 
 double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 {
+  MatchRadius_ = 0;
+
   //ROS_INFO("IcpLocal::Compute");
   timeval t1, t2;
   double elapsedTime;
@@ -104,12 +106,15 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
   // start timer
   gettimeofday(&t1, NULL);
 
+  int bad_iterations = 0;
+
   //float error = std::numeric_limits<float>::max();
   //float old_error;
-  int iterations = 1;
   //int validIterations = 0;
-  do
+  for (int i=0; i<maxIterations_ && bad_iterations < 20; i++)
   {
+    bad_iterations++;
+
     //cout << "IcpIteration " << iterations << ":" << endl;
     //old_error = error;
     //Selection();
@@ -118,21 +123,18 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 /*    MatchRadius_ = 15 - iterations;
     if (MatchRadius_ < 0)
       MatchRadius_ = 0;*/
-    MatchRadius_ = 0;
 
     SelectMatchReject();
     Minimization();
     double overlap = CalculateOverlap();
     if (overlap > maxOverlap_)
     {
-      cout << "Step " << iterations << ": " << overlap*100 << endl;
+      cout << "Step " << i << ": " << overlap*100 << endl;
       maxOverlap_ = overlap;
       bestTransformation_ = transformation_;
+      bad_iterations = 0;
     }
-
-    iterations++;
   }
-  while (iterations < maxIterations_);
 
   transformation_ = bestTransformation_;
 
