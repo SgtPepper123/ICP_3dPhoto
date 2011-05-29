@@ -40,44 +40,56 @@ ETH Zurich\\
 
 %%%%%%%%% ABSTRACT
 \begin{abstract}
-Some general explanation, maybe copy from proposal
+Some general explanation, maybe copy from proposal %TODO
 \end{abstract}
 
 \section{Classical ICP Algorithm}
-\cite{fasticp}
-
 The core of our implementation is the alignement of 2 pointclouds. 
-We have devided this functionality into 4 subfunctions(Selection, Matching, Rejection and Minimization), described below. 
-We didn't use any weighting of the points as this considered to not bring any advantage(fast icp paper reference) and would just add uneeded complexity.
+We have devided this functionality into 4 subfunctions (Selection, Matching, Rejection and Minimization), described below. This is very
+similar to the steps described in the Fast ICP paper (\cite{fasticp}). As described there, we didn't use any weighting of the points,
+because it is considered nt to bring any advantage according to the paper.
 
 \subsection{Selection}
 First we have to choose which points we want to align. This process is called selection. 
 We have choosen to sample the points randomly. 
-This has several advantages as it is fast, easy to implement and each point has potentially an influence on the algortihm.
+This has several advantages as it is fast, easy to implement and each point has potentially an influence on the algortihm, what is good.
+
+Also, we only sample points in one image, and then match them to the points in the second image. This has several reasons, one of them
+being able to match against a global point cloud, without having to estimate the normals and projection matrix in both clouds.
+This is explained in more detail below.
 
 \subsection{Matching}
-Initially we tried to match each selected point with it's nearest point in the target cloud. 
-This generally worked, but had several downsides: First it was slow, especilly without an accelerated search structure (e.g. kd-tree). 
-Furthermore it seems to be less stable than other matching approaches. 
-So went for a projection based. We take the selected point translate it into the coordinatesystem of the other camera an backproject it with the second camera.
-This is very fast as it is O(\# selected points) int opposite to O(\# selected points * points in cloud). 
-We extended this approach with a search for compatible points, so we looked int the neighbourhood of the backprojected point for the point with the best matching color information(measuring euclidian distance in RGB space).
+Initially we matched each selected point with it's nearest point in the target cloud. 
+This generally works, but has several downsides: First it was slow, especially without an accelerated search structure (e.g. kd-tree). 
+Furthermore, this seems to be less stable than other matching approaches, according to the Fast ICP paper (\cite{fasticp}).
+
+So we went for a projection based approach: We first take the selected point and translate it into the coordinate system of the other camera,
+using our current best guess of the translation / rotation we calculated so far. In a second step, we simply backproject it with the second camera,
+and receive basically the x and y coordinates of the pixels containing the matched points in the other image. If these coordinates are outside the image,
+we can simply discard the original point and select a new one.
+
+This is very fast as each point can be matched in O(1) (assuming not too many of the projected points lie outside of the image), opposite to
+O(\# selected points) using the old method.
+
+We later extended this approach with a search for compatible points: We look into the neighbourhood of the backprojected point
+for the point with the best matching color information (measuring euclidian distance in RGB space).
 
 \subsection{Rejection}
 To avoid too strong influence of outliers respectively wrong matches, we reject points that are to far away of each other. 
-To decide which matches are too far away, we compute the average distance and then we discarded all matches that have a distance greater than this average times some constant factor(1.2).
+To decide which matches are too far away, we computed the average distance. Then we multiply this average with some constant
+factor (\textit{1.2}, in our case), and use this value as a threshold: All the matches that have a distance greater than this
+we can now discard.
 
 \subsection{Minimization}
 \label{minimization}
 Now having all the matched points and their normals, we have to find a transformation matrix which minimizes the distance between those matched points.
-As the camera is always the same an does not change(recalibrate) it may only have made a translation or a rotation, resulting in a matrix with 6 degrees of freedom.
-Although the rotation part of the matrix is not really linear, but as we want to use SVD to solve this system we linearized the matrix
+As the camera is always the same and does not change it can only have made a translation or a rotation, resulting in a matrix with 6 degrees of freedom.
 
-(Formula)
+As a minimization criterium we used a point-to-plane metric: We try to minimize, in a least squares sense, the distance of each point to the plane
+defined by the other point and its normal. Although this gives us a nonlinear equation system, it can be easily linearized under the assumption
+that the angles of the rotation are really small. As described in \cite{ptp}, this problem can then be solved quite efficiently using SVD.
 
-\cite{ptp}
-
-When then solve this linear system with the eigen library(some ref to eigen library).
+In our code, we then solve this linear system with the eigen library (see section \ref{libraries}).
 To compensate the error from linearizing the system, we first tried to run the minimization several times. 
 This really brings some more accuracy for a single step. 
 However as the solving of the system is one of the most time consuming tasks in this algorithm and most transformations have only a small part of rotation, it's better to make a new icp step than to make additional svd iterations.
@@ -116,18 +128,89 @@ Finally we aimed for the .... method with the parameters ... , because ....
 
 \subsection{Usage of Color and Normals}
 
+\subsection{Hashing}
+At the beginning, we always only matched two point clouds together. However, as soon as we have a countinious stream of images,
+there are various new problems to be solved: On one hand, we needed a method to reduce the data: About 50 images (~ 2 Seconds)
+gives us already 500 mb of data, what quickly fills the RAM if nothing is done about it. On the other hand, there is the problem
+of global registration of all the images that needs to be solved. Simply comparing the last two images is not sufficiently accurate
+to prevent a drift. We found that a simple hashing function solved many different problems related to multiple images.
+
+\subsubsection{Compression}
+To do a compression of the points, we first thought of building up a k-d tree over all the points of two images. In a next step, we could have
+search for the two closest points in the pointcloud, and then merge them into one point. This could be iterated until sufficiently few
+points remain in the tree. In this fashion, we could have this global tree over all the points already gathered, and continuously add new
+images to that.
+
+This would have been quite time consuming, however. Therefore, we thought of a similar, but much faster solution:
+The general idea was to lay a 3D-grid over the image space, and then add at most one point into each Voxel. This means, that the resolution
+of the grid determines how detailed the point cloud is. The advantage of this is that we can easily add the same (or a very similar) point cloud
+to the structure without using more space.
+
+Instead of using some structure like an octree to achieve this, we decided to use a hashtable to remember in which voxels we have already stored points:
+Having a coordinate in x/y/z, we artificially decreased the accuracy of the coordinates to about cm or mm precision. Then we filled a big integer with
+shifted versions of the points, and used this as starting hash value to place this in a set. As an example: We have the Point
+\textit{P = (1.12341243..., 2.18898798..., 3.889192568...)}. First, we convert it to centimeters and round
+it to \textit{xyz = (112, 219, 389)}, then we add the three together:
+
+\textit{hashvalue = x + y*1000 + z*1000*1000 = 389 219 112}
+
+From this, we use a standard hash function and put in in the table. When we have a second
+point that is very near this one, it gets mapped to the same hashvalue because of the rounding and we don't add it to the pointcloud.
+
+\subsubsection{Global registration}
+We also used this hashing to perform a global registration: Instead of always just matching two point clouds, as we did in the beginning, we started
+to match the whole global point cloud with the new image. We hoped to achieve the following two things with this:
+\begin{itemize}
+\item Reduce drift. Because we always much against the whole history in a sense, we get less image-to-image drift over a whole sequence.
+\item Have some kind of loop closure. Again, when we compare with the whole history, we can hope to be able to match against
+the points of the first image, when we move the camera to the same place again.
+\end{itemize}
+
+This works because in the matching algorithm, we only need the projection matrix of
+one of the point clouds, and also the normals of the points in one image. That means, when selecting the random points from the global point hash, it is
+still possible to easily calculate the normals in one coherent kinect image, as well as doing the projection into this image.
+
+
+\subsubsection{Accuracy calculation}
+Using this hash function, we were also able to get a quite good measure for accuracy of matching between two images. We did the following:
+\begin{enumerate}
+\item Add all the points of the first point cloud to a hashset. This gives us the (low resolution) number of point in cloud 1 (\textit{= count1}).
+\item Do the same for the second point cloud (\textit{= count2}).
+\item Add all the points of both pointclouds to a hashset (\textit{= countsum}).
+\item With this, the overlap between both pointclouds can easily calculated as \textit{(count1+count2-countsum)/(countsum)}.
+\end{enumerate}
+It turned out, that this overlap highly correlates with the matching accuracy: The better two clouds are matched, the more overlap they have, assuming
+that only a small movement was performed, if the scene is general enough. For example, when you have two planes on top of each other, then the overlap
+is 1. When one of them is a little bit moved in the direction of their normal, then the overlap drops quite fast to almost zero.
+
+\subsubsection{Implementation}
+We tried and profiled various implementations for the Hashset. The first two of them where the unordered set of the Boost library and the set of the
+standard c library. However, both of them were too slow for our purposes, as (like described above) we have basically one insertion per pixel per image.
+
+In a second step, we included the sparsehash library provided by google, which already gave us a speedup of about 2. Still, for 200 Iterations the
+insertions took about 25 Seconds, what is way too slow.
+
+Finally, we found that the \textit{bitset} datastructure of the standard c++ library was really fast, and for our resolution still memory efficient enough,
+so we used that in our final implementation.
+
+\section{Mesh generation}
+GPGPU, mesh recovering, ...
+
 \section{Results}
 
 \section{Discussion}
 
 \section{Used libraries}
+\label{libraries}
 \begin{description}
 \item[Eigen 2]
 A lightweight C++ template library for vector and matrix math,
 a.k.a. linear algebra.
 
-- - Point and matrix type declarations
-- - svd solver for normal computation and minimization
+\begin{itemize}
+\item Point and matrix type declarations
+\item SVD decomposition for normal computation and minimization
+\end{itemize}
 
 \href{http://eigen.tuxfamily.org}{http://eigen.tuxfamily.org}
 
@@ -136,7 +219,10 @@ A meta-operating system for robots. It provides
 language-independent and network-transparent communication for a
 distributed robot control system.
 
-- - register to kinect data
+\begin{itemize}
+\item Register to kinect data
+\item Send final point cloud and camera positions to mesh generation
+\end{itemize}
 
 \href{http://ros.org}{http//ros.org}
 
