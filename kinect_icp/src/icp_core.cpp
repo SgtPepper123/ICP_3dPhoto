@@ -20,7 +20,7 @@ typedef union
 } RGBValue;
 
 IcpCore::IcpCore(ros::Publisher publisher)
-  : singleMerge_(true)
+  : singleMerge_(false)
   , accumulateResults_(true)
   , publisher_(publisher)
   , outCloud_(NULL)
@@ -287,7 +287,7 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     {
       cloud1_ = new PCloud(*new_point_cloud);
       outCloud_ = new PCloud(*new_point_cloud);
-      publisher_.publish(new_point_cloud);
+      //publisher_.publish(new_point_cloud);
       return;
     }
 
@@ -364,16 +364,51 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
       lastTransformation_ = algorithm_->GetTransformation();
     }
 
-    BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud.points)
+    /*BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud.points)
     {
       Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
       pnt = lastTransformation_ * pnt;
       pt.x = pnt[0];
       pt.y = pnt[1];
       pt.z = pnt[2];
-    }
+    }*/
 
-    *outCloud_ += cloud;
+    //*outCloud_ += cloud;
+    
+    Matrix4f mat = invertedTransformation(lastTransformation_);
+    
+    std::cout << mat << std::endl << std::endl;
+    
+    cloud.height += 1;
+    cloud.points.resize(cloud.width*cloud.height);
+    
+    Point tmpPt;
+    tmpPt.x = mat(0,0);
+    tmpPt.y = mat(1,0);
+    tmpPt.z = mat(2,0);
+    tmpPt.rgb = mat(3,0);
+    cloud(0,cloud.height-1) = tmpPt;
+
+    tmpPt.x = mat(0,1);
+    tmpPt.y = mat(1,1);
+    tmpPt.z = mat(2,1);
+    tmpPt.rgb = mat(3,1);
+    cloud(1,cloud.height-1) = tmpPt;
+    
+    tmpPt.x = mat(0,2);
+    tmpPt.y = mat(1,2);
+    tmpPt.z = mat(2,2);
+    tmpPt.rgb = mat(3,2);
+    cloud(2,cloud.height-1) = tmpPt;
+
+    tmpPt.x = mat(0,3);
+    tmpPt.y = mat(1,3);
+    tmpPt.z = mat(2,3);
+    tmpPt.rgb = mat(3,3);
+    cloud(3,cloud.height-1) = tmpPt;
+
+    publisher_.publish(cloud);
+    return;
 
   }
 

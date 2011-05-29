@@ -17,10 +17,11 @@ typedef struct tag_vertex2 {
 	//float normal_x, normal_y, normal_z;
 }vertex2;
 
-vertex2 ProjectPoint(vertex v,__local float project[12])
+vertex ProjectPoint(vertex v,__local float project[12])
 {
-  vertex2 result;
-  float invZ = 1.f/(project[8]*v.x + project[9]*v.y + project[10]*v.z + project[11]);
+  vertex result;
+  result.z = (project[8]*v.x + project[9]*v.y + project[10]*v.z + project[11]);
+  float invZ = 1.f/result.z;
   result.x = (project[0]*v.x + project[1]*v.y + project[2]*v.z + project[3])*invZ;
   result.y = (project[4]*v.x + project[5]*v.y + project[6]*v.z + project[7])*invZ;
   return result;
@@ -36,7 +37,7 @@ __constant float cubewidth_x = 2*1.f;
 __constant float cubemin_y = -1.f;
 __constant float cubewidth_y = 2*1.f;
 __constant float cubemin_z = 0.6f;
-__constant float cubewidth_z = 2.0f;
+__constant float cubewidth_z = 3.0f;
 
 vertex FromIndex(int x, int y, int z, int N)
 {
@@ -67,7 +68,7 @@ __kernel void fuse(__global float *Volume, __global float *Image, __local float 
   for(int iz = 0; iz < N; ++iz)
   {
     vertex v = FromIndex(ix,iy,iz,N);
-    vertex2 coords = ProjectPoint(v,project);
+    vertex coords = ProjectPoint(v,project);
     int Ix = (int)coords.x;
     int Iy = (int)coords.y;
     if(Ix >= 0 && Ix < width-1 && Iy >= 0 && Iy < height-1)
@@ -98,7 +99,7 @@ __kernel void fuse(__global float *Volume, __global float *Image, __local float 
       ,mix(mix(Image[index0+2],Image[index1+2],coords.x),mix(Image[index2+2],Image[index3+2],coords.x),coords.y)};*/
 
       float depth = Image[index0];
-      float voxelDepth = v.z;
+      float voxelDepth = coords.z;
       float dist = voxelDepth-depth;
       
       if(dist <= d_max)

@@ -243,6 +243,7 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   std::cout << *new_point_cloud << std::endl;
   int width = new_point_cloud->width;
   int height = new_point_cloud->height;
+  --height;
   imageSize_ = width*height;
   float* image = (float*) malloc(imageSize_ * sizeof (float));
   Point minP;
@@ -332,19 +333,33 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   CHECK(clFinish(command_queue_));
   
   Eigen::Matrix4f M;
-
-  //std::cout << new_point_cloud->sensor_orientation_ << std::endl;
-
-  M.topLeftCorner(3, 3) = new_point_cloud->sensor_orientation_.toRotationMatrix();
   
-  std::cout << *(new_point_cloud->points.end()-1) << std::endl;
-  
-  M.topRightCorner(4, 1) = new_point_cloud->sensor_origin_;
- 
-  M(3,0) = 0.0f;
-  M(3,1) = 0.0f;
-  M(3,2) = 0.0f;
-  M(3,3) = 1.0f;
+  const Point& p0 = (*new_point_cloud)(0,height);
+  const Point& p1 = (*new_point_cloud)(1,height);
+  const Point& p2 = (*new_point_cloud)(2,height);
+  const Point& p3 = (*new_point_cloud)(3,height);
+
+  M(0,0) = p0.x;
+  M(1,0) = p0.y;
+  M(2,0) = p0.z;
+  M(3,0) = p0.rgb;
+
+  M(0,1) = p1.x;
+  M(1,1) = p1.y;
+  M(2,1) = p1.z;
+  M(3,1) = p1.rgb;
+
+  M(0,2) = p2.x;
+  M(1,2) = p2.y;
+  M(2,2) = p2.z;
+  M(3,2) = p2.rgb;
+
+  M(0,3) = p3.x;
+  M(1,3) = p3.y;
+  M(2,3) = p3.z;
+  M(3,3) = p3.rgb;
+      
+  std::cout << M << std::endl << std::endl;
   
   Eigen::Matrix<float, 3, 4 > P;
     P << 525.0, 0, 319.5, 0.0,
@@ -417,7 +432,7 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
 
   free(volume);*/
   
-  if(fuseCount_ == 10)
+  //if(fuseCount_ == 10)
   {
     marchingCubes();
   }

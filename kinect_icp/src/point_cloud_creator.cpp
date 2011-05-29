@@ -52,7 +52,7 @@ int main(int argc, char **argv)
   // Create a Publisher for the final, merged images
   ros::Publisher publisher = n.advertise< PCloud const >("/camera/rgb/points", 10);
   
-  ros::Rate loop_rate(0.5);
+  ros::Rate loop_rate(.5);
   
   int count = 0;
   while (ros::ok())
@@ -62,9 +62,9 @@ int main(int argc, char **argv)
     PCloud cloud;
     
     cloud.width = 640;
-    cloud.height = 480;
+    cloud.height = 481;
     
-    cloud.points.resize(640*480);
+    cloud.points.resize(640*481);
     
     ros::Time time = ros::Time::now () + ros::Duration(1.0);
 
@@ -96,9 +96,9 @@ int main(int argc, char **argv)
                1.f;//sqrt(dx*dx+dy*dy+3.0*3.0);
         vec.normalize();
         Eigen::Vector3f pos;
-        pos << 0.f, 0.f, (float)count*0.3f;
+        pos << (float)count*0.1f - 1.0f, (float)count*0.1f - 1.0f, -(float)count*0.0f;
         
-        cloud.sensor_origin_(0) = pos(0);
+        cloud.sensor_origin_(0) = pos(0); 
         cloud.sensor_origin_(1) = pos(1);
         cloud.sensor_origin_(2) = pos(2);
 
@@ -122,12 +122,12 @@ int main(int argc, char **argv)
     }
     
     Point p1;
-    p1.x = -12;
-    p1.y = 16;
-    p1.z = 23;
-    p1.rgb = -45;
+    p1.x = cloud.sensor_origin_(0);
+    p1.y = cloud.sensor_origin_(1);
+    p1.z = cloud.sensor_origin_(2);
+    p1.rgb = 1.f;
     
-    cloud.points.push_back(p1);
+    cloud(0,480) = p1;
 
     std::cout << cloud << std::endl;
     publisher.publish(cloud);

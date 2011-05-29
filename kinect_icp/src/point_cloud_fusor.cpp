@@ -22,7 +22,7 @@ int main(int argc, char **argv)
   //create function pointer to registerCloud function in IcpCore
   //then subscribe it with the rosout node, so all published pointclouds will be directed to the algorithm.
   boost::function< void(const boost::shared_ptr< kinect_icp::PCloud const > &) > func = boost::bind(&kinect_icp::Vrip::fuseCloud, boost::ref(vrip), _1);
-  ros::Subscriber sub = n.subscribe("/camera/rgb/points", 1, func);
+  ros::Subscriber sub = n.subscribe("/merged_clouds", 1, func);
 
   //wait for messages till canceled
   ros::spin();
