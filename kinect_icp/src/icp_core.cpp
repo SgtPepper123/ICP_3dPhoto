@@ -80,9 +80,9 @@ void IcpCore::visualizeNormals(const PCloud::ConstPtr& new_point_cloud)
       for (int i = 0; i < 20; i++)
       {
         Vector3f normal;
-        if (algorithm.ComputeNormalSimple(x, y, normal))
+        if (algorithm.ComputeNormal(x, y, normal))
         {
-          if (normal[1] > 0)
+          if (normal[2] > 0)
             normal = -normal;
           pcl::PointXYZRGB new_point;
           new_point.x = pt.x + 0.005 * normal[0] * i;
