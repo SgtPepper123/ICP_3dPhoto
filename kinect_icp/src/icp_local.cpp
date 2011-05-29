@@ -136,7 +136,7 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
     }
   }
 
-  transformation_ = bestTransformation_;
+  //transformation_ = bestTransformation_;
 
   gettimeofday(&t2, NULL);
   elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0; // sec to ms
