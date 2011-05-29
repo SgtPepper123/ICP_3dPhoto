@@ -116,6 +116,71 @@ Finally we aimed for the .... method with the parameters ... , because ....
 
 \subsection{Usage of Color and Normals}
 
+\subsection{Hashing}
+At the beginning, we always only matched two point clouds together. However, as soon as we have a countinious stream of images,
+there are various new problems to be solved: On one hand, we needed a method to reduce the data: About 50 images (~ 2 Seconds)
+gives us already 500 mb of data, what quickly fills the RAM if nothing is done about it. On the other hand, there is the problem
+of global registration of all the images that needs to be solved. Simply comparing the last two images is not sufficiently accurate
+to prevent a drift. We found that a simple hashing function solved many different problems related to multiple images.
+
+\subsubsection{Compression}
+To do a compression of the points, we first thought of building up a k-d tree over all the points of two images. In a next step, we could have
+search for the two closest points in the pointcloud, and then merge them into one point. This could be iterated until sufficiently few
+points remain in the tree. In this fashion, we could have this global tree over all the points already gathered, and continuously add new
+images to that.
+
+This would have been quite time consuming, however. Therefore, we thought of a similar, but much faster solution:
+The general idea was to lay a 3D-grid over the image space, and then add at most one point into each Voxel. This means, that the resolution
+of the grid determines how detailed the point cloud is. The advantage of this is that we can easily add the same (or a very similar) point cloud
+to the structure without using more space.
+
+Instead of using some structure like an octree to achieve this, we decided to use a hashtable to remember in which voxels we have already stored points:
+Having a coordinate in x/y/z, we artificially decreased the accuracy of the coordinates to about cm or mm precision. Then we filled a big integer with
+shifted versions of the points, and used this as starting hash value to place this in a set. As an example: We have the Point
+\textit{P = (1.12341243..., 2.18898798..., 3.889192568...)}. First, we convert it to centimeters and round
+it to \textit{xyz = (112, 219, 389)}, then we add the three together:
+
+\textit{hashvalue = x + y*1000 + z*1000*1000 = 389 219 112}
+
+From this, we use a standard hash function and put in in the table. When we have a second
+point that is very near this one, it gets mapped to the same hashvalue because of the rounding and we don't add it to the pointcloud.
+
+\subsubsection{Global registration}
+We also used this hashing to perform a global registration: Instead of always just matching two point clouds, as we did in the beginning, we started
+to match the whole global point cloud with the new image. We hoped to achieve the following two things with this:
+\begin{itemize}
+\item Reduce drift. Because we always much against the whole history in a sense, we get less image-to-image drift over a whole sequence.
+\item Have some kind of loop closure. Again, when we compare with the whole history, we can hope to be able to match against
+the points of the first image, when we move the camera to the same place again.
+\end{itemize}
+
+This works because in the matching algorithm, we only need the projection matrix of
+one of the point clouds, and also the normals of the points in one image. That means, when selecting the random points from the global point hash, it is
+still possible to easily calculate the normals in one coherent kinect image, as well as doing the projection into this image.
+
+
+\subsubsection{Accuracy calculation}
+Using this hash function, we were also able to get a quite good measure for accuracy of matching between two images. We did the following:
+\begin{enumerate}
+\item Add all the points of the first point cloud to a hashset. This gives us the (low resolution) number of point in cloud 1 (\textit{= count1}).
+\item Do the same for the second point cloud (\textit{= count2}).
+\item Add all the points of both pointclouds to a hashset (\textit{= countsum}).
+\item With this, the overlap between both pointclouds can easily calculated as \textit{(count1+count2-countsum)/(countsum)}.
+\end{enumerate}
+It turned out, that this overlap highly correlates with the matching accuracy: The better two clouds are matched, the more overlap they have, assuming
+that only a small movement was performed, if the scene is general enough. For example, when you have two planes on top of each other, then the overlap
+is 1. When one of them is a little bit moved in the direction of their normal, then the overlap drops quite fast to almost zero.
+
+\subsubsection{Implementation}
+We tried and profiled various implementations for the Hashset. The first two of them where the unordered set of the Boost library and the set of the
+standard c library. However, both of them were too slow for our purposes, as (like described above) we have basically one insertion per pixel per image.
+
+In a second step, we included the sparsehash library provided by google, which already gave us a speedup of about 2. Still, for 200 Iterations the
+insertions took about 25 Seconds, what is way too slow.
+
+Finally, we found that the \textit{bitset} datastructure of the standard c++ library was really fast, and for our resolution still memory efficient enough,
+so we used that in our final implementation.
+
 \section{Results}
 
 \section{Discussion}
