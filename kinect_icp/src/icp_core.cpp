@@ -227,20 +227,17 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
     PCloud new_cloud(*new_point_cloud);
     hashedAdd(&new_cloud, outCloud_);
 
-    transformCloud(outCloud_, green_);
+//    transformCloud(outCloud_, green_);
 
     publisher_.publish(*outCloud_);
     return;
   }
 
-  if (!cloud1_)
-  {
-    cloud1_ = new PCloud(*new_point_cloud);
-    transformCloud(cloud1_, red_);
+  PCloud tmpcloud(*new_point_cloud);
+  delete algorithm_;
 
-    algorithm_ = new IcpLocal(outCloud_, cloud1_);
-    algorithm_->SetMaxIterations(1);
-  }
+  algorithm_ = new IcpLocal(outCloud_, &tmpcloud, 200);
+  algorithm_->SetTransformation(lastTransformation_);
 
   numComputes_++;
   totalTime_ += algorithm_->Compute();
@@ -248,10 +245,8 @@ void IcpCore::registerHashCloud(const PCloud::ConstPtr& new_point_cloud)
 
   lastTransformation_ = algorithm_->GetTransformation();
 
-  PCloud tmp(*outCloud_);
-
-  hashedAdd(cloud1_, &tmp);
-  publisher_.publish(tmp);
+  hashedAdd(&tmpcloud, outCloud_);
+  publisher_.publish(*outCloud_);
 }
 
 void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
