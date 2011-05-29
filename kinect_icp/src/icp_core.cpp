@@ -299,7 +299,7 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
       delete outCloud_;
       outCloud_ = new PCloud(*cloud2_);
     }
-    IcpLocal* tmpAlgo = new IcpLocal(cloud1_, cloud2_);
+    IcpLocal* tmpAlgo = new IcpLocal(cloud1_, cloud2_, 100);
 
     if (algorithm_)
     {
@@ -308,8 +308,6 @@ void IcpCore::registerCloud(const PCloud::ConstPtr& new_point_cloud)
     }
 
     algorithm_ = tmpAlgo;
-
-    algorithm_->SetMaxIterations(200);
   }
 
   //algorithm.TestMinimizeTranslate();

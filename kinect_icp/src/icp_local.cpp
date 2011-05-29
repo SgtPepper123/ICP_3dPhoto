@@ -108,10 +108,15 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
 
   int bad_iterations = 0;
 
+  for (int i=0; i<100; i++) {
+    SelectMatchReject();
+    Minimization();
+  }
+
   //float error = std::numeric_limits<float>::max();
   //float old_error;
   //int validIterations = 0;
-  for (int i=0; i<maxIterations_ && bad_iterations < 20; i++)
+  for (int i=0; i<maxIterations_ && bad_iterations < 40; i++)
   {
     bad_iterations++;
 
@@ -136,7 +141,7 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
     }
   }
 
-  //transformation_ = bestTransformation_;
+  transformation_ = bestTransformation_;
 
   gettimeofday(&t2, NULL);
   elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0; // sec to ms
