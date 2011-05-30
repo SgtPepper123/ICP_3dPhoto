@@ -14,6 +14,12 @@ using std::cout;
 #define MAX_SOURCE_SIZE (0x100000)
 #define BLOCK_SIZE = 1024
 
+#define RED "\033[31m\033[1m\033[5m"
+#define GREEN "\033[32m\033[1m\033[5m"
+#define YELLOW "\033[33m\033[1m\033[5m"
+#define BLUE "\033[34m\033[1m\033[5m"
+#define WHITE "\E[m"
+
 //#define TEST_LEAKS
 
 #define CHECK(value) if ((value) != 0) {std::cerr << "An Error(" << (value) << ") occurred at " << __FILE__ << ":" << __LINE__ << std::endl; exit(1);}
@@ -321,6 +327,11 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   std::cout << minP << std::endl;
   std::cout << maxP << std::endl;
 
+  // Start timer
+  timeval t1, t2;
+  double elapsedTime;
+  gettimeofday(&t1, NULL);
+
   cl_int ret;
   image_mem_obj_ = clCreateBuffer(context_, CL_MEM_READ_ONLY,
   imageSize_ * sizeof (float), NULL, &ret);
@@ -431,23 +442,18 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   }
 
   free(volume);*/
+
+  gettimeofday(&t2, NULL);
+  elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0; // sec to ms
+  elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0; // us to ms
+
+  cout << RED << "Time for vrip: " << elapsedTime << "ms" << WHITE << endl;
   
   //if(fuseCount_ == 10)
   {
 
-    timeval t1, t2;
-    double elapsedTime;
-
-    // start timer
-    gettimeofday(&t1, NULL);
-
     marchingCubes();
 
-    gettimeofday(&t2, NULL);
-    elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0; // sec to ms
-    elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0; // us to ms
-
-    cout << "Time for marching cubes: " << elapsedTime << "ms" << endl;
   }
   
   ++fuseCount_;
@@ -556,6 +562,12 @@ void Vrip::testScan()
 
 void Vrip::marchingCubes()
 {
+  timeval t1, t2;
+  double elapsedTime;
+
+  // start timer
+  gettimeofday(&t1, NULL);
+
   std::cout << "pre Marching cubes started" << std::endl;
 
   // Set the arguments of the kernel
@@ -599,7 +611,12 @@ void Vrip::marchingCubes()
   CHECK(clFinish(command_queue_));
 
   std::cout << "Marching cubes finished" << std::endl;
+    
+  gettimeofday(&t2, NULL);
+  elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0; // sec to ms
+  elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0; // us to ms
 
+  cout << RED << "Time for marching cubes: " << elapsedTime << "ms" << WHITE << endl;
   //Write Marching Cube Surface
   std::ofstream File("test.off");
   File << "OFF" << std::endl;
