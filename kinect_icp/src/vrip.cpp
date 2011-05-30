@@ -434,7 +434,20 @@ void Vrip::fuseCloud(const PCloud::ConstPtr& new_point_cloud)
   
   //if(fuseCount_ == 10)
   {
+
+    timeval t1, t2;
+    double elapsedTime;
+
+    // start timer
+    gettimeofday(&t1, NULL);
+
     marchingCubes();
+
+    gettimeofday(&t2, NULL);
+    elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0; // sec to ms
+    elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0; // us to ms
+
+    cout << "Time for marching cubes: " << elapsedTime << "ms" << endl;
   }
   
   ++fuseCount_;

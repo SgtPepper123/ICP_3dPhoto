@@ -1,7 +1,5 @@
 #include <Eigen/Dense>
 #include <iostream>
-#include <google/dense_hash_set>
-using google::dense_hash_set;
 
 #include "time.h"
 
@@ -18,6 +16,10 @@ using namespace std;
 #define WHITE "\E[m"
 
 //#define MinimizationDetails
+//#define PrintMinimizationMatrices
+
+// Radius for Normal estimation
+const int Radius = 5;
 
 typedef union
 {
@@ -33,7 +35,6 @@ typedef union
   long long_value;
 } RGBValue;
 
-//#define PrintMinimizationMatrices
 
 int IcpLocal::AddToHash(Set* hash, PCloud* cloud, bool transform, bool simulate)
 {
@@ -86,20 +87,18 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
   , selectionAmount_(200)
   , maxOverlap_(0)
 {
-//  srand(time(NULL));
+  // For reproducable results, set to fixed value
+  // srand(time(NULL));
   srand(42);
 
   points1_ = AddToHash(&initial_bitset, first, false, true);
   points2_ = AddToHash(&initial_bitset, second, false, false);
 }
 
-#define MinValidIterations 3
-
-double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
+double IcpLocal::Compute()
 {
   MatchRadius_ = 0;
 
-  //ROS_INFO("IcpLocal::Compute");
   timeval t1, t2;
   double elapsedTime;
 
@@ -113,21 +112,19 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
     Minimization();
   }
 
-  //float error = std::numeric_limits<float>::max();
-  //float old_error;
-  //int validIterations = 0;
   for (int i=0; i<maxIterations_ && bad_iterations < 40; i++)
   {
     bad_iterations++;
 
-    //cout << "IcpIteration " << iterations << ":" << endl;
-    //old_error = error;
+    // Old separate iterations:
     //Selection();
     //Matching();
     //Rejecting();
-/*    MatchRadius_ = 15 - iterations;
-    if (MatchRadius_ < 0)
-      MatchRadius_ = 0;*/
+    
+    // Variable matching radius:
+    //MatchRadius_ = 15 - iterations;
+    //if (MatchRadius_ < 0)
+    //  MatchRadius_ = 0;
 
     SelectMatchReject();
     Minimization();
@@ -141,18 +138,12 @@ double IcpLocal::Compute(/*SomeMatrixClass initialTransformation*/)
     }
   }
 
-  transformation_ = bestTransformation_;
-
   gettimeofday(&t2, NULL);
   elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0; // sec to ms
   elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0; // us to ms
-  //cout << elapsedTime << " ms.\n";
-  //ROS_INFO("IcpLocal::ComputeFinished");
 
   return elapsedTime;
 }
-//const int MatchRadius = 10;
-const int Radius = 5;
 
 double IcpLocal::CalculateOverlap()
 {
@@ -169,7 +160,6 @@ double IcpLocal::CalculateOverlap()
 
 void IcpLocal::SelectMatchReject()
 {
-  //ROS_INFO("IcpLocal::SelectMatchReject");
   Matrix<float, 3, 4 > P;
   P << 525.0, 0, 319.5, 0,
     0, 525.0, 239.5, 0,
@@ -181,6 +171,7 @@ void IcpLocal::SelectMatchReject()
   selected_.reserve(selectionAmount_);
 
   float sum = 0.f;
+
   //average guessing
   for (int i = 0; i < 10;)
   {
@@ -191,7 +182,6 @@ void IcpLocal::SelectMatchReject()
 
     Vector3f coords = P * p1;
 
-    //+0.5 is there to round to nearst int and not just floor
     int x = coords[0] / coords[2];
     int y = coords[1] / coords[2];
 
@@ -486,22 +476,13 @@ bool IcpLocal::ComputeNormal(int x, int y, Vector3f& normal)
     i = 0;
   else if (ev1 < ev0 && ev1 < ev2)
     i = 1;
-  //  else
-  //    normal = es.eigenvectors().col(2);
-
+  
   normal(0) = es.eigenvectors()(0, i);
   normal(1) = es.eigenvectors()(1, i);
   normal(2) = es.eigenvectors()(2, i);
 
   if (normal.norm() > 1.1 || normal.norm() < 0.9 || normal.norm() != normal.norm())
   {
-
-    /*cout << "PROBLEM" << endl;
-    cout << normal << endl;
-    cout << "A:" << endl;
-    cout << A << endl;
-    cout << "EVS" << ev0 << "," << ev1 << "," << ev2 << endl;
-     */
     return false;
   }
 
@@ -544,7 +525,6 @@ void IcpLocal::Rejecting()
 
 float IcpLocal::Minimization()
 {
-  //ROS_INFO("IcpLocal::Minimization");
   int N = selected_.size();
 
   Matrix<double, Dynamic, Dynamic> A(selectedCount_, 6);
@@ -607,16 +587,16 @@ float IcpLocal::Minimization()
     const int window = 20;
     static list<int> last_movements(window, 10000); // list with 2 elements
 
-    /*cout << "Angles (Grad): " << TransformParams(0) / PI * 360. << "/" <<
+    cout << "Angles (Grad): " << TransformParams(0) / PI * 360. << "/" <<
       TransformParams(1) / PI * 360. << "/" <<
       TransformParams(2) / PI * 360. << endl;
 
     cout << "Movement (cm): " << TransformParams(3)*100 << "/" <<
       TransformParams(4)*100 << "/" <<
-      TransformParams(5)*100 << endl;*/
+      TransformParams(5)*100 << endl;
 
     double total = Transformation.topRightCorner(3, 1).norm()*100;
-//    cout << GREEN << "Total Movement (cm): " << total << WHITE << endl;
+    cout << GREEN << "Total Movement (cm): " << total << WHITE << endl;
 
     last_movements.push_back(total);
     last_movements.pop_front();
@@ -651,7 +631,7 @@ float IcpLocal::Minimization()
     double a1 = upper / lower;
     double a0 = avy - a1*avx;
 
-    //cout << RED << "A0/A1: " << a0 << "/" << a1 << WHITE << endl;
+    cout << RED << "A0/A1: " << a0 << "/" << a1 << WHITE << endl;
     cout << a1 << endl;
 #endif
 
