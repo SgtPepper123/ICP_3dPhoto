@@ -579,9 +579,10 @@ void IcpCore::generateGroundTruth(const PCloud::ConstPtr& new_point_cloud)
 
     //*outCloud_ += cloud;
     
-    Matrix4f mat = invertedTransformation(lastTransformation_);
+    //Matrix4f mat = invertedTransformation(lastTransformation_);
     
-    std::cout << mat << std::endl << std::endl;
+    //std::cout << mat << std::endl << std::endl;
+    Matrix4f mat = lastTransformation_.inverse();
     
     cloud.height += 1;
     cloud.points.resize(cloud.width*cloud.height);
