@@ -150,7 +150,7 @@ Vrip::Vrip()
   while (i < volumeSize_ * 2)
   {
     volume[i++] = d_max;
-    volume[i++] = 0;
+    volume[i++] = -1;
   }
 
   // Copy the lists A and B to their respective memory buffers
