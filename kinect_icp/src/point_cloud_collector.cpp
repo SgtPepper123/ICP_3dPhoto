@@ -12,18 +12,19 @@ int main(int argc, char **argv)
 
   // Create a Publisher for the final, merged images
   ros::Publisher merged_pub = n.advertise< kinect_icp::PCloud const >("merged_clouds", 1);
+  ros::Publisher vrip_pub = n.advertise< kinect_icp::PCloud const >("vrip_clouds", 1);
 
   //entrypoint of the Icp Algorithm
-  kinect_icp::IcpCore core(merged_pub);
+  kinect_icp::IcpCore core(merged_pub, vrip_pub);
 
   //set in which algorithm should run
   //core.singleMerge_ = true;
 
   //create function pointer to registerCloud function in IcpCore
   //then subscribe it with the rosout node, so all published pointclouds will be directed to the algorithm.
-  boost::function< void(const boost::shared_ptr< kinect_icp::PCloud const > &) > func = boost::bind(&kinect_icp::IcpCore::registerCloud, boost::ref(core), _1);
+  //boost::function< void(const boost::shared_ptr< kinect_icp::PCloud const > &) > func = boost::bind(&kinect_icp::IcpCore::registerCloud, boost::ref(core), _1);
   //boost::function< void(const boost::shared_ptr< kinect_icp::PCloud const > &)> func = boost::bind(&kinect_icp::IcpCore::visualizeNormals,boost::ref(core),_1);
-  //boost::function< void(const boost::shared_ptr< kinect_icp::PCloud const > &)> func = boost::bind(&kinect_icp::IcpCore::generateGroundTruth,boost::ref(core),_1);
+  boost::function< void(const boost::shared_ptr< kinect_icp::PCloud const > &)> func = boost::bind(&kinect_icp::IcpCore::generateGroundTruth,boost::ref(core),_1);
   //boost::function< void(const boost::shared_ptr< kinect_icp::PCloud const > &)> func = boost::bind(&kinect_icp::IcpCore::tuneParameters,boost::ref(core),_1);
 
   ros::Subscriber sub = n.subscribe("/camera/rgb/points", 1, func);

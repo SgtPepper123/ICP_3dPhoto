@@ -13,7 +13,7 @@ typedef boost::unordered_set<uint32_t> unordered_set;
 class IcpCore
 {
 public:
-  IcpCore(ros::Publisher publisher);
+  IcpCore(ros::Publisher publisher, ros::Publisher vrip_publisher);
 
   void registerCloud(const PCloud::ConstPtr& new_point_cloud);
   void registerHashCloud(const PCloud::ConstPtr& new_point_cloud);
@@ -38,6 +38,7 @@ private:
   std::vector<PCloud::ConstPtr> Clouds_;
 
   ros::Publisher publisher_;
+  ros::Publisher vrip_publisher_;
 
   PCloud* outCloud_;
   PCloud* cloud1_;

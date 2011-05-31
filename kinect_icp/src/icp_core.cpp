@@ -19,10 +19,11 @@ typedef union
   long long_value;
 } RGBValue;
 
-IcpCore::IcpCore(ros::Publisher publisher)
+IcpCore::IcpCore(ros::Publisher publisher, ros::Publisher vrip_publisher)
   : singleMerge_(false)
   , accumulateResults_(true)
   , publisher_(publisher)
+  , vrip_publisher_(vrip_publisher)
   , outCloud_(NULL)
   , cloud1_(NULL)
   , cloud2_(NULL)
@@ -478,10 +479,11 @@ void IcpCore::generateGroundTruth(const PCloud::ConstPtr& new_point_cloud)
 {
   ROS_DEBUG("Received Point Cloud");
 
-  const int max_frame = 49;
-  const int precision_diff = 10;
-  const int precision_steps = 5;
+  const int max_frame = 100;
   const int final_average_steps = 5;
+
+  const int precision_diff = 1;
+  const int precision_steps = 1;
 
   // First step
   if (!cloud1_)
@@ -563,4 +565,52 @@ void IcpCore::generateGroundTruth(const PCloud::ConstPtr& new_point_cloud)
       publishDiffToStart();
     }
   }
+
+    PCloud cloud(*new_point_cloud);
+
+    /*BOOST_FOREACH(pcl::PointXYZRGB& pt, cloud.points)
+    {
+      Eigen::Vector4f pnt(pt.x, pt.y, pt.z, 1.0);
+      pnt = lastTransformation_ * pnt;
+      pt.x = pnt[0];
+      pt.y = pnt[1];
+      pt.z = pnt[2];
+    }*/
+
+    //*outCloud_ += cloud;
+    
+    Matrix4f mat = invertedTransformation(lastTransformation_);
+    
+    std::cout << mat << std::endl << std::endl;
+    
+    cloud.height += 1;
+    cloud.points.resize(cloud.width*cloud.height);
+    
+    Point tmpPt;
+    tmpPt.x = mat(0,0);
+    tmpPt.y = mat(1,0);
+    tmpPt.z = mat(2,0);
+    tmpPt.rgb = mat(3,0);
+    cloud(0,cloud.height-1) = tmpPt;
+
+    tmpPt.x = mat(0,1);
+    tmpPt.y = mat(1,1);
+    tmpPt.z = mat(2,1);
+    tmpPt.rgb = mat(3,1);
+    cloud(1,cloud.height-1) = tmpPt;
+    
+    tmpPt.x = mat(0,2);
+    tmpPt.y = mat(1,2);
+    tmpPt.z = mat(2,2);
+    tmpPt.rgb = mat(3,2);
+    cloud(2,cloud.height-1) = tmpPt;
+
+    tmpPt.x = mat(0,3);
+    tmpPt.y = mat(1,3);
+    tmpPt.z = mat(2,3);
+    tmpPt.rgb = mat(3,3);
+    cloud(3,cloud.height-1) = tmpPt;
+
+    vrip_publisher_.publish(cloud);
+    return;
 }
