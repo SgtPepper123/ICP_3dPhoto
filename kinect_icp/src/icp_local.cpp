@@ -17,6 +17,7 @@ using namespace std;
 
 //#define MinimizationDetails
 //#define PrintMinimizationMatrices
+//#define HASHING
 
 // Radius for Normal estimation
 const int Radius = 5;
@@ -91,8 +92,10 @@ IcpLocal::IcpLocal(PCloud* first, PCloud* second, int iterations)
   // srand(time(NULL));
   srand(42);
 
+#ifdef HASHING
   points1_ = AddToHash(&initial_bitset, first, false, true);
   points2_ = AddToHash(&initial_bitset, second, false, false);
+#endif
 }
 
 double IcpLocal::Compute()
@@ -105,6 +108,7 @@ double IcpLocal::Compute()
   // start timer
   gettimeofday(&t1, NULL);
 
+#ifdef HASHING
   int bad_iterations = 0;
 
   for (int i=0; i<100; i++) {
@@ -113,9 +117,10 @@ double IcpLocal::Compute()
   }
 
   for (int i=0; i<maxIterations_ && bad_iterations < 40; i++)
+#else
+  for (int i=0; i<maxIterations_; i++)
+#endif
   {
-    bad_iterations++;
-
     // Old separate iterations:
     //Selection();
     //Matching();
@@ -128,6 +133,10 @@ double IcpLocal::Compute()
 
     SelectMatchReject();
     Minimization();
+
+#ifdef HASHING
+    bad_iterations++;
+
     double overlap = CalculateOverlap();
     if (overlap > maxOverlap_)
     {
@@ -136,6 +145,7 @@ double IcpLocal::Compute()
       bestTransformation_ = transformation_;
       bad_iterations = 0;
     }
+#endif
   }
 
   gettimeofday(&t2, NULL);
