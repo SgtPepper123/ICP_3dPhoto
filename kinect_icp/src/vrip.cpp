@@ -21,6 +21,7 @@ using std::cout;
 #define WHITE "\E[m"
 
 //#define TEST_LEAKS
+//#define PREFIX_ON_CPU
 
 #define CHECK(value) if ((value) != 0) {std::cerr << "An Error(" << (value) << ") occurred at " << __FILE__ << ":" << __LINE__ << std::endl; exit(1);}
 
@@ -100,9 +101,9 @@ int device_stats(cl_device_id device_id)
 }
 
 const int Volume_Size = 128;
-const float d_max = 0.25;
+const float d_max = 0.05;
 const float d_min = -d_max;
-const int blockSize = 1024;
+const int blockSize = 512;
 
 Vrip::Vrip()
   : imageSize_(Volume_Size*Volume_Size)
@@ -643,7 +644,7 @@ void Vrip::marchingCubes()
 int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
 {
   std::cout << input_length << " prefixSum" << std::endl;
-
+#ifdef PREFIX_ON_CPU
   int* input = (int*) malloc(input_length *sizeof (int));
   CHECK(clEnqueueReadBuffer(command_queue_, inputBuffer, CL_TRUE, 0,
     input_length * sizeof (int), input, 0, NULL, NULL));
@@ -666,8 +667,8 @@ int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
   free(input);
   
   return sum;
-
-/*  cl_uint pass;
+#else
+  cl_uint pass;
   cl_uint length = input_length;
 
   // Calculate number of passes required 
@@ -793,7 +794,8 @@ int Vrip::preFixSum(cl_mem inputBuffer, int input_length)
   free(outputBuffer);
   free(tmp);
 
-  return sum;*/
+  return sum;
+#endif
 }
 
 void Vrip::bScan(cl_uint len,
