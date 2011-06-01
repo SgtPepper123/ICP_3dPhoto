@@ -6,6 +6,7 @@
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{subfig}
 
 \usepackage[pagebackref=true,breaklinks=true,letterpaper=true,colorlinks,bookmarks=false]{hyperref}
 
@@ -59,6 +60,8 @@ being able to match against a global point cloud, without having to estimate the
 This is explained in more detail below.
 
 \subsection{Matching}
+\label{backprojection}
+
 Initially we matched each selected point with it's nearest point in the target cloud. 
 This generally works, but has several downsides: First it was slow, especially without an accelerated search structure (e.g. kd-tree). 
 Furthermore, this seems to be less stable than other matching approaches, according to the Fast ICP paper (\cite{fasticp}).
@@ -90,41 +93,86 @@ defined by the other point and its normal. Although this gives us a nonlinear eq
 that the angles of the rotation are really small. As described in \cite{ptp}, this problem can then be solved quite efficiently using SVD.
 
 In our code, we then solve this linear system with the eigen library (see section \ref{libraries}).
-To compensate the error from linearizing the system, we first tried to run the minimization several times. 
-This really brings some more accuracy for a single step. 
-However as the solving of the system is one of the most time consuming tasks in this algorithm and most transformations have only a small part of rotation, it's better to make a new icp step than to make additional svd iterations.
+To compensate the error from linearizing the system, we first tried to run the minimization several times, what brings more accuracy for a single step. 
+However as the solving of the system is one of the most time consuming tasks in this algorithm,
+and most transformations have only a small part of rotation, it's better to make a new icp step than to make additional svd iterations.
 
 \subsection{Optimizations}
-We combined the Selection, matching and rejection step into one function. This allows us to have a constant number of samples, which then gives us more freedom in setting the number of samples.
-As it can't occure anymore, that from time to time 80\% or more the samples are discarded. So testing showed, that fewer samples(around 50) reduce the computation time alot, while keeping the accuracy at a reasonable level.
+We combined the Selection, matching and rejection step into one function. This allows us to have a constant number of samples,
+which then gives us more freedom in setting the number of samples. In the beginning, it happened quite often that we had to discard
+80\% or more of the chosen samples, this cannot happen anymore. Testing showed, that fewer samples(around 50) reduce the computation
+time a lot, while keeping the accuracy at a reasonable level.
 
 \section{Additional Steps}
-Besides implementing the steps described in the ''Fast ICP''\cite{fasticp} paper, we needed to implement some additional steps to get the algorithm working.
+Besides implementing the steps described in the ''Fast ICP''\cite{fasticp} paper,
+we needed to implement some additional steps to get the algorithm working.
 
 \subsection{Calibration}
+To be able to do the backprojection described in Section \ref{backprojection}, we needed to have the projection matrix of the 3D-points
+into the 2D camera pixel coordinates.
+Although there was a projection matrix provided within the ROS environment, we were not sure how accurate this would be. Therefore, we
+wrote all the points from multiple pictures out into a file, and calculated the projection matrix ourselves. 
+
+For this, we used the Direct Linear Transform (DLT) algorithm written last Semester in the Computer Vision course.
 
 \subsection{Normal estimation}
+We decided to implement a point-to-plane error metric in the last step of the ICP Algorithm (section \ref{minimization}).
+To use that, we needed to define a plane respectively a normal at each of the matched points.
 
-We decided to implement a point-to-plane error metric in the last step of the ICP Algorithm (section \ref{minimization}). To use that, we needed to define a plane respectively a normal at each of the matched points.
-
-Since the kinect framework does not provide any normal information, we had to generate them ourselves. For that, we implemented and compared several different methods.
+Since the kinect framework does not provide any normal information, we had to generate them ourselves.
+For that, we implemented and compared several different methods.
 
 \subsubsection{Cross Product}
 The first was to simply take the top/bottom/right/left neighbours and compute the normal with the crossproduct.
-This approach has some limitations, as if only one of the 4 neighbours is a nan(due to the limitations in the kinect) the normal can't be compute. Furthermore it is very sensitive to noise, and only one outlier can make the normal unusable.
+The advantage of this is that we can calculate the normal very fast, and only need a small neighbourhood around the point
+we want the normal from.
+
+However, the approach has some severe limitations, as if only one of the 4 neighbours is a \textit{NaN}
+(due to the limitations in the kinect) the normal can't be computed.
+Furthermore it is very sensitive to noise, and only one outlier can make the normal unusable.
 
 \subsubsection{Principal Components}
-So we aimed at a more stable solution which is based on the computation of the principal coponents. 
-The first 2 principal components describe the tangential direction of the plane while the 3th is the normal component.
+So we aimed at a more stable solution which is based on the computation of the principal coponents: We gathered a number of neighbouring
+points, starting from the point we want the normal from. From these, we generate the covariance Matrix and calculate the Eigenvectors.
+
+Basically this is a principal component analysis: The first 2 principal components describe the tangential direction of
+the plane while the 3th is the normal component.
 Compared to the previous solution this is much slower, but much more stable and an arbitrary number of neighbouring points may be chosen.
-To be able to decide, how to make the trade-off between the number of computations and the accuracy, we made some visualizations of the computed normals.
-We varied the method and the size of the considered neighbourhood respectively the offset between the samples.
 
 \subsubsection{Extended Cross Product}
+After it turned out that the Principac Componant analysis was quite slow, we decided to try a third method: What we did was basically take the Cross
+Product again, but this time with four points that are a number of pixels \textbf{R} far away from the original pixel. So, instead of taking the closest
+four points in any direction, we take for example the points 5 or 10 pixels away, when \textbf{R} is 5 or 10, respectively.
 
-(some images of the described tests)
+This has the effect that pixel noise has a much smaller influence on the result, but computation is still very fast. However, it has of course a much more
+smoothing effect on the normals, and many small details can be lost.
 
-Finally we aimed for the .... method with the parameters ... , because ....
+\subsubsection{Comparison}
+To be able to decide, how to make the trade-off between the number of computations and the accuracy, we made some visualizations of the computed
+normals (see figure \ref{fig:normals}).
+
+We varied the method and the size of the considered neighbourhood respectively the offset between the samples. You can clearly see that the simple cross
+product (\ref{fig:crossproduct}) has the worst characteristics, especially on this noisy example. The data are from a wall that are very far away from
+the kinect camera, giving only very coarse depth accuracy.
+
+The principal components method (\ref{fig:variance}) and also the extended cross product (\ref{fig:extended}) show much better results. However, the
+extended cross product method can only be used in areas where enough data points are availabe, meaning we have no normals at edges (the red dots in 
+the figures) and in areas whith many \textit{NaN}'s. Also, PCA is much more robust and gives generally more stable result.
+
+Therefore, in the end, we decided to still use PCA to calculate the normals in most cases. We found that a radius of 6 is a good compromise between
+robustness on one side, and detail preserving and computational speed on the other side.
+
+\begin{figure*}
+  \centering
+  \subfloat[Cross Product]{\label{fig:crossproduct}\includegraphics[width=0.3\textwidth]{simple1}}
+  \quad
+  \subfloat[Principal Components]{\label{fig:variance}\includegraphics[width=0.3\textwidth]{variance8}}
+  \quad
+  \subfloat[Extended Cross Product]{\label{fig:extended}\includegraphics[width=0.3\textwidth]{simple8}}
+  \caption{Different normal calculation methods}
+  \label{fig:normals}
+\end{figure*}
+
 
 \subsection{Usage of Color and Normals}
 
@@ -198,6 +246,30 @@ GPGPU, mesh recovering, ...
 
 \section{Results}
 
+\begin{figure}
+  \includegraphics[width=0.5\textwidth]{pfostenstart}
+  \label{fig:pfostenstart}
+  \caption{First image of \textit{Pfosten} sequence}
+\end{figure}
+
+\begin{figure}
+  \includegraphics[width=0.5\textwidth]{pfostenend}
+  \label{fig:pfostenend}
+  \caption{Merged \textit{Pfosten} sequence}
+\end{figure}
+
+\begin{figure*}
+  \centering
+  \subfloat[First single image]{\label{fig:resultfirst}\includegraphics[width=0.33\textwidth]{resultfirst}}
+  \subfloat[Merged cloud without hashing]{\label{fig:resultdrift}\includegraphics[width=0.33\textwidth]{resultdrift}}
+  \subfloat[Merged cloud with hashing]{\label{fig:resulthashing}\includegraphics[width=0.33\textwidth]{resulthashing}}
+  \caption{Merged \textit{ML} sequence with and without drift in global registration}
+  \label{fig:globalregistration}
+\end{figure*}
+
+
+Realtime ... Hashing, new method (accuracy...) ... not too stable yet, more tuning/testing/different scenes needed ... extended cross product .. colors
+
 \section{Discussion}
 
 \section{Used libraries}
@@ -241,11 +313,6 @@ ROS OpenNI is an open source project focused on the integration of the PrimeSens
 \href{http://www.ros.org/wiki/ni}{http://www.ros.org/wiki/ni}
 
 \end{description}
-
-{\small
-\bibliographystyle{ieee}
-\bibliography{egbib}
-}
 
 \begin{thebibliography}{99}
 \bibitem{fasticp}

@@ -32,12 +32,12 @@ float Length(vertex v)
   return sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
 }
 
-__constant float cubemin_x = -0.3f;
-__constant float cubewidth_x = 2*0.3f;
-__constant float cubemin_y = -0.3f;
-__constant float cubewidth_y = 2*0.3f;
-__constant float cubemin_z = 0.8f;
-__constant float cubewidth_z = 0.6f;
+__constant float cubemin_x = -1.f;
+__constant float cubewidth_x = 2*1.f;
+__constant float cubemin_y = -1.f;
+__constant float cubewidth_y = 2*1.f;
+__constant float cubemin_z = 0.6f;
+__constant float cubewidth_z = 4.f;
 
 vertex FromIndex(int x, int y, int z, int N)
 {
