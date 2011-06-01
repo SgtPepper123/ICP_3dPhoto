@@ -6,6 +6,7 @@
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{subfig}
 
 \usepackage[pagebackref=true,breaklinks=true,letterpaper=true,colorlinks,bookmarks=false]{hyperref}
 
@@ -126,7 +127,7 @@ The first was to simply take the top/bottom/right/left neighbours and compute th
 The advantage of this is that we can calculate the normal very fast, and only need a small neighbourhood around the point
 we want the normal from.
 
-However, the approach has some severe limitations, as if only one of the 4 neighbours is a nan
+However, the approach has some severe limitations, as if only one of the 4 neighbours is a \textit{NaN}
 (due to the limitations in the kinect) the normal can't be computed.
 Furthermore it is very sensitive to noise, and only one outlier can make the normal unusable.
 
@@ -147,11 +148,30 @@ This has the effect that pixel noise has a much smaller influence on the result,
 smoothing effect on the normals, and many small details can be lost.
 
 \subsubsection{Comparison}
-To be able to decide, how to make the trade-off between the number of computations and the accuracy, we made some visualizations of the computed normals.
-We varied the method and the size of the considered neighbourhood respectively the offset between the samples.
+To be able to decide, how to make the trade-off between the number of computations and the accuracy, we made some visualizations of the computed
+normals (see figure \ref{fig:normals}).
 
-... Pictures ...
+We varied the method and the size of the considered neighbourhood respectively the offset between the samples. You can clearly see that the simple cross
+product (\ref{fig:crossproduct}) has the worst characteristics, especially on this noisy example. The data are from a wall that are very far away from
+the kinect camera, giving only very coarse depth accuracy.
 
+The principal components method (\ref{fig:variance}) and also the extended cross product (\ref{fig:extended}) show much better results. However, the
+extended cross product method can only be used in areas where enough data points are availabe, meaning we have no normals at edges (the red dots in 
+the figures) and in areas whith many \textit{NaN}'s. Also, PCA is much more robust and gives generally more stable result.
+
+Therefore, in the end, we decided to still use PCA to calculate the normals in most cases. We found that a radius of 6 is a good compromise between
+robustness on one side, and detail preserving and computational speed on the other side.
+
+\begin{figure*}
+  \centering
+  \subfloat[Cross Product]{\label{fig:crossproduct}\includegraphics[width=0.3\textwidth]{simple1}}
+  \quad
+  \subfloat[Principal Components]{\label{fig:variance}\includegraphics[width=0.3\textwidth]{variance8}}
+  \quad
+  \subfloat[Extended Cross Product]{\label{fig:extended}\includegraphics[width=0.3\textwidth]{simple8}}
+  \caption{Different normal calculation methods}
+  \label{fig:normals}
+\end{figure*}
 
 
 \subsection{Usage of Color and Normals}
@@ -225,7 +245,17 @@ so we used that in our final implementation.
 GPGPU, mesh recovering, ...
 
 \section{Results}
-Realtime ... Hashing, new method (accuracy...) ... not too stable yet, more tuning/testing/different scenes needed ...
+\begin{figure*}
+  \centering
+  \subfloat[First single image]{\label{fig:resultfirst}\includegraphics[width=0.33\textwidth]{resultfirst}}
+  \subfloat[Merged cloud without hashing]{\label{fig:resultdrift}\includegraphics[width=0.33\textwidth]{resultdrift}}
+  \subfloat[Merged cloud with hashing]{\label{fig:resulthashing}\includegraphics[width=0.33\textwidth]{resulthashing}}
+  \caption{Merged sequence with and without drift in global registration}
+  \label{fig:globalregistration}
+\end{figure*}
+
+
+Realtime ... Hashing, new method (accuracy...) ... not too stable yet, more tuning/testing/different scenes needed ... extended cross product .. colors
 
 \section{Discussion}
 
