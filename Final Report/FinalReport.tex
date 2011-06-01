@@ -6,7 +6,7 @@
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
-\usepackage{subfig}
+\usepackage[caption=false]{subfig}
 
 \usepackage[pagebackref=true,breaklinks=true,letterpaper=true,colorlinks,bookmarks=false]{hyperref}
 
@@ -75,7 +75,7 @@ This is very fast as each point can be matched in O(1) (assuming not too many of
 O(\# selected points) using the old method.
 
 We later extended this approach with a search for compatible points: We look into the neighbourhood of the backprojected point
-for the point with the best matching color information (measuring euclidian distance in RGB space).
+for the point with the best matching color information (measuring euclidian distance in RGB space). See section \ref{colormatching}.
 
 \subsection{Rejection}
 To avoid too strong influence of outliers respectively wrong matches, we reject points that are to far away of each other. 
@@ -173,8 +173,30 @@ robustness on one side, and detail preserving and computational speed on the oth
   \label{fig:normals}
 \end{figure*}
 
+\subsection{Usage of Color}
+\label{colormatching}
+Compared to other Range scanners, with the kinect we have the possibility to also get the color information of the images.
+This works not perfectly well, however: The resoulutions of the color camera and the infrared camera are different, and
+they have also a certain offset, making it necessary to do some 3D-calculations to match them together.
 
-\subsection{Usage of Color and Normals}
+Despite this, we tried to use the color information to get better results in the selection and matching step: After having
+done the usual backprojection of the points from one range image into the other, we tried to look in a certain radius around
+the projected point to find others with a more similar color in the 3D RGB - space. Especially on big planes or walls, with
+no distinctive 3D features to use, color information could potentially give valuable information when there is some kind
+of texture on the walls. But also for matching points from differently colored foreground and background objects color
+information is useful.
+
+For the radius, we did various experiments. The simplest was a fixed radius of up to 20 pixels. However, also other
+possibilities were tried out, like having a big radius at the beginning, and making it smaller over time, to get a
+better convergence, especially on surfaces without big color variances.
+
+We found that the usage of color information can give a significant speedup, measured in the number of steps used for the
+algorithm to converge. However, this was very dependend on the setting, and it could also lead to instability.
+Furthermore it significantly increased computational time overall, what was not always made up with the reduced number of
+steps. Thats why we didn't use color information in the demo at the end of the project.
+
+We conclude here, that the color information could indeed be a big help matching corresponding points in the ICP algorithm,
+however it would probably need a more elaborate matching (like patch comparisons or gradients) to get robust results.
 
 \subsection{Hashing}
 At the beginning, we always only matched two point clouds together. However, as soon as we have a countinious stream of images,
@@ -196,11 +218,12 @@ to the structure without using more space.
 
 Instead of using some structure like an octree to achieve this, we decided to use a hashtable to remember in which voxels we have already stored points:
 Having a coordinate in x/y/z, we artificially decreased the accuracy of the coordinates to about cm or mm precision. Then we filled a big integer with
-shifted versions of the points, and used this as starting hash value to place this in a set. As an example: We have the Point
-\textit{P = (1.12341243..., 2.18898798..., 3.889192568...)}. First, we convert it to centimeters and round
-it to \textit{xyz = (112, 219, 389)}, then we add the three together:
+shifted versions of the points, and used this as starting hash value to place this in a set.
 
-\textit{hashvalue = x + y*1000 + z*1000*1000 = 389 219 112}
+As an example: We have the Point
+$$P = (1.123412\ldots, 2.188987\ldots, 3.889192\ldots)$$
+First, we convert it to centimeters and round it to the integers $(112, 219, 389)$, then we add the three together:
+$$\textit{hashvalue} = x + y*1000 + z*1000*1000 = 389 219 112$$
 
 From this, we use a standard hash function and put in in the table. When we have a second
 point that is very near this one, it gets mapped to the same hashvalue because of the rounding and we don't add it to the pointcloud.
@@ -242,7 +265,15 @@ Finally, we found that the \textit{bitset} datastructure of the standard c++ lib
 so we used that in our final implementation.
 
 \section{Mesh generation}
-GPGPU, mesh recovering, ...
+As part of the \textit{GPGPU lecture}, we developed our project further and also generated a mesh out of the aligned pointclouds, as you can see in
+Figure \ref{fig:pfostenmesh} for the merged \textit{pfosten} sequence (\ref{fig:pfostenend}).
+As this is not part of this project, we will not go into detail about this, and just give a quick overview of what we did there.
+
+\begin{figure}
+  \includegraphics[width=0.4\textwidth]{pfostenmesh}
+  \caption{Part of the generated mesh for the \textit{Pfosten} sequence}
+  \label{fig:pfostenmesh}
+\end{figure}
 
 \section{Results}
 
