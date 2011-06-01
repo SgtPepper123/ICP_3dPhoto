@@ -59,6 +59,8 @@ being able to match against a global point cloud, without having to estimate the
 This is explained in more detail below.
 
 \subsection{Matching}
+\label{backprojection}
+
 Initially we matched each selected point with it's nearest point in the target cloud. 
 This generally works, but has several downsides: First it was slow, especially without an accelerated search structure (e.g. kd-tree). 
 Furthermore, this seems to be less stable than other matching approaches, according to the Fast ICP paper (\cite{fasticp}).
@@ -104,6 +106,14 @@ time a lot, while keeping the accuracy at a reasonable level.
 Besides implementing the steps described in the ''Fast ICP''\cite{fasticp} paper,
 we needed to implement some additional steps to get the algorithm working.
 
+\subsection{Calibration}
+To be able to do the backprojection described in Section \ref{backprojection}, we needed to have the projection matrix of the 3D-points
+into the 2D camera pixel coordinates.
+Although there was a projection matrix provided within the ROS environment, we were not sure how accurate this would be. Therefore, we
+wrote all the points from multiple pictures out into a file, and calculated the projection matrix ourselves. 
+
+For this, we used the Direct Linear Transform (DLT) algorithm written last Semester in the Computer Vision course.
+
 \subsection{Normal estimation}
 We decided to implement a point-to-plane error metric in the last step of the ICP Algorithm (section \ref{minimization}).
 To use that, we needed to define a plane respectively a normal at each of the matched points.
@@ -140,7 +150,8 @@ smoothing effect on the normals, and many small details can be lost.
 To be able to decide, how to make the trade-off between the number of computations and the accuracy, we made some visualizations of the computed normals.
 We varied the method and the size of the considered neighbourhood respectively the offset between the samples.
 
-\subsection{Calibration}
+... Pictures ...
+
 
 
 \subsection{Usage of Color and Normals}
@@ -214,6 +225,7 @@ so we used that in our final implementation.
 GPGPU, mesh recovering, ...
 
 \section{Results}
+Realtime ... Hashing, new method (accuracy...) ... not too stable yet, more tuning/testing/different scenes needed ...
 
 \section{Discussion}
 
