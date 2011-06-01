@@ -41,7 +41,11 @@ ETH Zurich\\
 
 %%%%%%%%% ABSTRACT
 \begin{abstract}
-Some general explanation, maybe copy from proposal %TODO
+In this paper, we present our method of implementing in realtime the matching and generation of 3D meshes out of multiple pointclouds coming from a kinect
+camera. Matching was done using a fast version of the iterative closest point (ICP) algorithm, and for mesh generation we used vrip and marching cubes.
+
+During the development, we came up with some (as far as we know) novel ideas to solve the problems of point cloud matching, compression and accuracy
+estimation with the help of hashes.
 \end{abstract}
 
 \section{Classical ICP Algorithm}
@@ -240,7 +244,7 @@ the points of the first image, when we move the camera to the same place again.
 This works because in the matching algorithm, we only need the projection matrix of
 one of the point clouds, and also the normals of the points in one image. That means, when selecting the random points from the global point hash, it is
 still possible to easily calculate the normals in one coherent kinect image, as well as doing the projection into this image.
-
+\label{globalhashing}
 
 \subsubsection{Accuracy calculation}
 Using this hash function, we were also able to get a quite good measure for accuracy of matching between two images. We did the following:
@@ -267,7 +271,7 @@ so we used that in our final implementation.
 \section{Mesh generation}
 As part of the \textit{GPGPU lecture}, we developed our project further and also generated a mesh out of the aligned pointclouds, as you can see in
 Figure \ref{fig:pfostenmesh} for the merged \textit{pfosten} sequence (\ref{fig:pfostenend}).
-As this is not part of this project, we will not go into detail about this, and just give a quick overview of what we did there.
+As this is not part of this project, we will not go into detail about this, and just give a quick overview of what we did.
 
 \begin{figure}
   \includegraphics[width=0.4\textwidth]{pfostenmesh}
@@ -275,7 +279,23 @@ As this is not part of this project, we will not go into detail about this, and 
   \label{fig:pfostenmesh}
 \end{figure}
 
+In one ROS thread, we processed all the data we got directly from the kinect camera. Then we did the ICP step, and sent the pointclouds,
+along with their relative positions to a second ROS thread. In there, we used the vrip algorithm \cite{vrip} to create an implicit
+function representing the mesh. Finally, we used marching cubes to generate the mesh, and wrote it out as a file, to be viewed or further
+processed by an external program. Marching cubes as well as vrip were implemented in OpenCL, what gave us the possibility to run it on a
+GPU as well as a CPU.
+
+For the important vrip step, we measured a speedup of about 10 on the GPU compared to the CPU.
+Since we used the GPU, as well as a second thread to do the calculations, we were also able to generate the mesh in realtime.
+
 \section{Results}
+The first results of the global pointcloud we got were actually quite promising, although we did not do any global registration.
+In this case, we only compared two images at a time. Of course, for a longer sequence, this is cleary accumulating a lot of
+drift over time, since the images are not compared with earlier ones.
+However, it worked quite well sometimes, as you can see for example in the \textit{pfosten} sequence, the first image of that you
+can see in figure \ref{fig:pfostenstart}.
+This example was 7.4 Seconds long, and the camera was turned around the pillar, capturing 49 images into a bagfiles.
+This bagfile was replayed in realtime to get the result you can see in figure \ref{fig:pfostenend}.
 
 \begin{figure}
   \includegraphics[width=0.5\textwidth]{pfostenstart}
@@ -289,6 +309,10 @@ As this is not part of this project, we will not go into detail about this, and 
   \caption{Merged \textit{Pfosten} sequence}
 \end{figure}
 
+On the opposite, for the \textit{ML} sequence, this did not work at all, as you can see when you look at the result from figure
+\ref{fig:resultfirst} to \ref{fig:resultdrift}. Only adding the global registration and the hashing, described in section \ref{globalhashing}
+resulted in the desired pointcloud (figure \ref{fig:resulthashing}).
+
 \begin{figure*}
   \centering
   \subfloat[First single image]{\label{fig:resultfirst}\includegraphics[width=0.33\textwidth]{resultfirst}}
@@ -298,10 +322,16 @@ As this is not part of this project, we will not go into detail about this, and 
   \label{fig:globalregistration}
 \end{figure*}
 
+As the times for the single iterations as well as the number of iterations used for the iterations are heavily dependent on the parameters, like
+normal radius, color matching radius, hash grid size and so on, we do not give detailed here. However, as you can see in the examples here, we managed
+to do it in realtime. To achieve the desired accuracy, we tuned the parameters in such a way that the matching of a single image to the global pointcloud
+took usually longer than the time to the next image. Therefore, in our implementation we drop new images as long as we are still calculating old ones.
 
+The stopping criterion of ICP was made dependent on the overlap to the global point cloud. We stopped as soon as the overlap in the hash from the global
+and the point cloud being matched was not improved for a certain number of steps. After stopping, we take the result with the best overlap.
+
+\section{Discussion and Outlook}
 Realtime ... Hashing, new method (accuracy...) ... not too stable yet, more tuning/testing/different scenes needed ... extended cross product .. colors
-
-\section{Discussion}
 
 \section{Used libraries}
 \label{libraries}
@@ -332,16 +362,29 @@ distributed robot control system.
 \item[Point Cloud Library (PCL)]
 A comprehensive open source library for n-D Point Clouds and 3D geometry processing.
 
-- - point cloud type definitions
+\begin{itemize}
+\item Point cloud type definitions.
+\end{itemize}
 
 \href{http://pointclouds.org}{http://pointclouds.org}
 
 \item[The ROS OpenNI project]
 ROS OpenNI is an open source project focused on the integration of the PrimeSense sensors with ROS.
 
--- kinect
+\begin{itemize}
+\item Aquisition of the kinect image and depth information.
+\end{itemize}
 
 \href{http://www.ros.org/wiki/ni}{http://www.ros.org/wiki/ni}
+
+\item[Open Computing Language (OpenCL)]
+A framework for writing programs that execute across heterogeneous platforms consisting of CPUs, GPUs, and other processors.
+
+\begin{itemize}
+\item Used for the second part for mesh generation.
+\end{itemize}
+
+\href{http://www.khronos.org/opencl/}{http://www.khronos.org/opencl/}
 
 \end{description}
 
@@ -358,7 +401,11 @@ Kok-Lim Low.
 Point-to-Plane ICP Surface Registration}.
 Technical Report TR04-004, Department of Computer Science, University of North Carolina at Chapel Hill, February 2004.
 
-\end{thebibliography}
+\bibitem{vrip}
+Brian Curless and Marc Levoy.
+\emph{A Volumetric Method for Building Complex Models from Range Images}.
+Proceedings of SIGGRAPH96.
 
+\end{thebibliography}
 
 \end{document}
