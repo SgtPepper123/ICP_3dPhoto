@@ -51,7 +51,7 @@ estimation with the help of hashes.
 \section{Classical ICP Algorithm}
 The core of our implementation is the alignement of 2 pointclouds. 
 We have devided this functionality into 4 subfunctions (Selection, Matching, Rejection and Minimization), described below. This is very
-similar to the steps described in the Fast ICP paper (\cite{fasticp}). As described there, we didn't use any weighting of the points,
+similar to the steps described in the Fast ICP paper \cite{fasticp}. As described there, we didn't use any weighting of the points,
 because it is considered nt to bring any advantage according to the paper.
 
 \subsection{Selection}
@@ -68,7 +68,7 @@ This is explained in more detail below.
 
 Initially we matched each selected point with it's nearest point in the target cloud. 
 This generally works, but has several downsides: First it was slow, especially without an accelerated search structure (e.g. kd-tree). 
-Furthermore, this seems to be less stable than other matching approaches, according to the Fast ICP paper (\cite{fasticp}).
+Furthermore, this seems to be less stable than other matching approaches, according to the Fast ICP paper \cite{fasticp}.
 
 So we went for a projection based approach: We first take the selected point and translate it into the coordinate system of the other camera,
 using our current best guess of the translation / rotation we calculated so far. In a second step, we simply backproject it with the second camera,
@@ -108,7 +108,7 @@ which then gives us more freedom in setting the number of samples. In the beginn
 time a lot, while keeping the accuracy at a reasonable level.
 
 \section{Additional Steps}
-Besides implementing the steps described in the ''Fast ICP''\cite{fasticp} paper,
+Besides implementing the steps described in the ''Fast ICP'' \cite{fasticp} paper,
 we needed to implement some additional steps to get the algorithm working.
 
 \subsection{Calibration}
