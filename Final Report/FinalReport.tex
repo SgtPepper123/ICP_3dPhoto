@@ -52,7 +52,16 @@ estimation with the help of hashes.
 The core of our implementation is the alignement of 2 pointclouds. 
 We have devided this functionality into 4 subfunctions (Selection, Matching, Rejection and Minimization), described below. This is very
 similar to the steps described in the Fast ICP paper \cite{fasticp}. As described there, we didn't use any weighting of the points,
-because it is considered nt to bring any advantage according to the paper.
+because it is considered not to bring any advantage according to the paper.
+
+In figure \ref{matching} you can see one result of the matching algorithm, for two point clouds (green and red) of the \textit{fig:matching} sequence.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=0.4\textwidth]{matching}
+  \label{fig:matching}
+  \caption{Two pointclouds matched by our \textit{ICP} algorithm}
+\end{figure}
 
 \subsection{Selection}
 First we have to choose which points we want to align. This process is called selection. 
@@ -274,8 +283,9 @@ Figure \ref{fig:pfostenmesh} for the merged \textit{pfosten} sequence (\ref{fig:
 As this is not part of this project, we will not go into detail about this, and just give a quick overview of what we did.
 
 \begin{figure}
+  \centering
   \includegraphics[width=0.4\textwidth]{pfostenmesh}
-  \caption{Part of the generated mesh for the \textit{Pfosten} sequence}
+  \caption{Part of the generated mesh for the \textit{pfosten} sequence}
   \label{fig:pfostenmesh}
 \end{figure}
 
@@ -300,13 +310,14 @@ This bagfile was replayed in realtime to get the result you can see in figure \r
 \begin{figure}
   \includegraphics[width=0.5\textwidth]{pfostenstart}
   \label{fig:pfostenstart}
-  \caption{First image of \textit{Pfosten} sequence}
+  \caption{First image of \textit{pfosten} sequence}
 \end{figure}
 
 \begin{figure}
+  \centering
   \includegraphics[width=0.5\textwidth]{pfostenend}
   \label{fig:pfostenend}
-  \caption{Merged \textit{Pfosten} sequence}
+  \caption{Merged \textit{pfosten} sequence}
 \end{figure}
 
 On the opposite, for the \textit{ML} sequence, this did not work at all, as you can see when you look at the result from figure
