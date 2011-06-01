@@ -54,7 +54,7 @@ We have devided this functionality into 4 subfunctions (Selection, Matching, Rej
 similar to the steps described in the Fast ICP paper \cite{fasticp}. As described there, we didn't use any weighting of the points,
 because it is considered not to bring any advantage according to the paper.
 
-In figure \ref{matching} you can see one result of the matching algorithm, for two point clouds (green and red) of the \textit{fig:matching} sequence.
+In figure \ref{fig:matching} you can see one result of the matching algorithm, for two point clouds (green and red) of the \textit{fig:matching} sequence.
 
 \begin{figure}
   \centering
@@ -101,7 +101,7 @@ we can now discard.
 Now having all the matched points and their normals, we have to find a transformation matrix which minimizes the distance between those matched points.
 As the camera is always the same and does not change it can only have made a translation or a rotation, resulting in a matrix with 6 degrees of freedom.
 
-As a minimization criterium we used a point-to-plane metric: We try to minimize, in a least squares sense, the distance of each point to the plane
+As a minimization criterion we used a point-to-plane metric: We try to minimize, in a least squares sense, the distance of each point to the plane
 defined by the other point and its normal. Although this gives us a nonlinear equation system, it can be easily linearized under the assumption
 that the angles of the rotation are really small. As described in \cite{ptp}, this problem can then be solved quite efficiently using SVD.
 
@@ -308,14 +308,14 @@ This example was 7.4 Seconds long, and the camera was turned around the pillar, 
 This bagfile was replayed in realtime to get the result you can see in figure \ref{fig:pfostenend}.
 
 \begin{figure}
-  \includegraphics[width=0.5\textwidth]{pfostenstart}
+  \includegraphics[width=0.4\textwidth]{pfostenstart}
   \label{fig:pfostenstart}
   \caption{First image of \textit{pfosten} sequence}
 \end{figure}
 
 \begin{figure}
   \centering
-  \includegraphics[width=0.5\textwidth]{pfostenend}
+  \includegraphics[width=0.4\textwidth]{pfostenend}
   \label{fig:pfostenend}
   \caption{Merged \textit{pfosten} sequence}
 \end{figure}
@@ -342,7 +342,18 @@ The stopping criterion of ICP was made dependent on the overlap to the global po
 and the point cloud being matched was not improved for a certain number of steps. After stopping, we take the result with the best overlap.
 
 \section{Discussion and Outlook}
-Realtime ... Hashing, new method (accuracy...) ... not too stable yet, more tuning/testing/different scenes needed ... extended cross product .. colors
+We have shown that it is possible to use a fast version of the \textit{ICP} algorithm for realtime pose estimation and 3D scene recunstruction.
+However, we mainly tested our algorithm with some prerecorded evaluation scenes, that were mostly less than 10 seconds long. Additionally,
+there are many parameters that can be changed in the algorithm. Further research could be done to tune all these parameters to make the algorithm
+work with more generic, and with longer scenes.
+
+We have added many "features" to the algorithm that can be enabled, disabled and changed. Examples
+are the color matching, different normal calculations and the hashing stopping criterion. Many of these are also a tradeoff between speed and
+accuracy, and it depends on the hardware resources if it makes sense to use them. Therefore, our implementation should be regarded more
+as a general framework for testing and adapting the algorithm than as an off-the-shelf solution that works already for all sorts of different scenes.
+
+Additionally, we implemented and tested new ideas. We introduced hashing as a mean of global registration, accuracy calculation and compression
+of the pointclouds. We also evaluated different normal calculation methods as well as a simple color matching algorithm.
 
 \section{Used libraries}
 \label{libraries}
