@@ -462,14 +462,18 @@ __kernel void precube(__global float *Volume, __global int* memoryNeeded, int N)
     float v6 = isoValue(Volume,ix+1,iy+1,iz+1,N);
     float v7 = isoValue(Volume,ix,iy+1,iz+1,N);
 
-    int cubeindex = ((int)(v0 > 0) << 0) | ((int)(v1 > 0) << 1) | ((int)(v2 > 0) << 2) | ((int)(v3 > 0) << 3) | ((int)(v4 > 0) << 4) | ((int)(v5 > 0) << 5) | ((int)(v6 > 0) << 6) | ((int)(v7 > 0) << 7);
+    float v = v0+v1+v2+v3+v4+v5+v6+v7;
+    
+    if(v>-100000000.f)
+    {
+      int cubeindex = ((int)(v0 > 0) << 0) | ((int)(v1 > 0) << 1) | ((int)(v2 > 0) << 2) | ((int)(v3 > 0) << 3) | ((int)(v4 > 0) << 4) | ((int)(v5 > 0) << 5) | ((int)(v6 > 0) << 6) | ((int)(v7 > 0) << 7);
 
-    memoryNeeded[Index(ix,iy,iz,N)] = triTable[cubeindex][15]*3;
+      memoryNeeded[Index(ix,iy,iz,N)] = triTable[cubeindex][15]*3;
+      
+      return;
+    }
   }
-  else
-  {
-    memoryNeeded[Index(ix,iy,iz,N)] = 0;
-  }
+  memoryNeeded[Index(ix,iy,iz,N)] = 0;
 }
 
 __kernel void cube(__global float *Volume, __global int* memoryNeeded, __global float* VertexList, int N)
