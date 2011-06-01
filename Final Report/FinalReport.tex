@@ -90,41 +90,58 @@ defined by the other point and its normal. Although this gives us a nonlinear eq
 that the angles of the rotation are really small. As described in \cite{ptp}, this problem can then be solved quite efficiently using SVD.
 
 In our code, we then solve this linear system with the eigen library (see section \ref{libraries}).
-To compensate the error from linearizing the system, we first tried to run the minimization several times. 
-This really brings some more accuracy for a single step. 
-However as the solving of the system is one of the most time consuming tasks in this algorithm and most transformations have only a small part of rotation, it's better to make a new icp step than to make additional svd iterations.
+To compensate the error from linearizing the system, we first tried to run the minimization several times, what brings more accuracy for a single step. 
+However as the solving of the system is one of the most time consuming tasks in this algorithm,
+and most transformations have only a small part of rotation, it's better to make a new icp step than to make additional svd iterations.
 
 \subsection{Optimizations}
-We combined the Selection, matching and rejection step into one function. This allows us to have a constant number of samples, which then gives us more freedom in setting the number of samples.
-As it can't occure anymore, that from time to time 80\% or more the samples are discarded. So testing showed, that fewer samples(around 50) reduce the computation time alot, while keeping the accuracy at a reasonable level.
+We combined the Selection, matching and rejection step into one function. This allows us to have a constant number of samples,
+which then gives us more freedom in setting the number of samples. In the beginning, it happened quite often that we had to discard
+80\% or more of the chosen samples, this cannot happen anymore. Testing showed, that fewer samples(around 50) reduce the computation
+time a lot, while keeping the accuracy at a reasonable level.
 
 \section{Additional Steps}
-Besides implementing the steps described in the ''Fast ICP''\cite{fasticp} paper, we needed to implement some additional steps to get the algorithm working.
-
-\subsection{Calibration}
+Besides implementing the steps described in the ''Fast ICP''\cite{fasticp} paper,
+we needed to implement some additional steps to get the algorithm working.
 
 \subsection{Normal estimation}
+We decided to implement a point-to-plane error metric in the last step of the ICP Algorithm (section \ref{minimization}).
+To use that, we needed to define a plane respectively a normal at each of the matched points.
 
-We decided to implement a point-to-plane error metric in the last step of the ICP Algorithm (section \ref{minimization}). To use that, we needed to define a plane respectively a normal at each of the matched points.
-
-Since the kinect framework does not provide any normal information, we had to generate them ourselves. For that, we implemented and compared several different methods.
+Since the kinect framework does not provide any normal information, we had to generate them ourselves.
+For that, we implemented and compared several different methods.
 
 \subsubsection{Cross Product}
 The first was to simply take the top/bottom/right/left neighbours and compute the normal with the crossproduct.
-This approach has some limitations, as if only one of the 4 neighbours is a nan(due to the limitations in the kinect) the normal can't be compute. Furthermore it is very sensitive to noise, and only one outlier can make the normal unusable.
+The advantage of this is that we can calculate the normal very fast, and only need a small neighbourhood around the point
+we want the normal from.
+
+However, the approach has some severe limitations, as if only one of the 4 neighbours is a nan
+(due to the limitations in the kinect) the normal can't be computed.
+Furthermore it is very sensitive to noise, and only one outlier can make the normal unusable.
 
 \subsubsection{Principal Components}
-So we aimed at a more stable solution which is based on the computation of the principal coponents. 
-The first 2 principal components describe the tangential direction of the plane while the 3th is the normal component.
+So we aimed at a more stable solution which is based on the computation of the principal coponents: We gathered a number of neighbouring
+points, starting from the point we want the normal from. From these, we generate the covariance Matrix and calculate the Eigenvectors.
+
+Basically this is a principal component analysis: The first 2 principal components describe the tangential direction of
+the plane while the 3th is the normal component.
 Compared to the previous solution this is much slower, but much more stable and an arbitrary number of neighbouring points may be chosen.
+
+\subsubsection{Extended Cross Product}
+After it turned out that the Principac Componant analysis was quite slow, we decided to try a third method: What we did was basically take the Cross
+Product again, but this time with four points that are a number of pixels \textbf{R} far away from the original pixel. So, instead of taking the closest
+four points in any direction, we take for example the points 5 or 10 pixels away, when \textbf{R} is 5 or 10, respectively.
+
+This has the effect that pixel noise has a much smaller influence on the result, but computation is still very fast. However, it has of course a much more
+smoothing effect on the normals, and many small details can be lost.
+
+\subsubsection{Comparison}
 To be able to decide, how to make the trade-off between the number of computations and the accuracy, we made some visualizations of the computed normals.
 We varied the method and the size of the considered neighbourhood respectively the offset between the samples.
 
-\subsubsection{Extended Cross Product}
+\subsection{Calibration}
 
-(some images of the described tests)
-
-Finally we aimed for the .... method with the parameters ... , because ....
 
 \subsection{Usage of Color and Normals}
 
@@ -241,11 +258,6 @@ ROS OpenNI is an open source project focused on the integration of the PrimeSens
 \href{http://www.ros.org/wiki/ni}{http://www.ros.org/wiki/ni}
 
 \end{description}
-
-{\small
-\bibliographystyle{ieee}
-\bibliography{egbib}
-}
 
 \begin{thebibliography}{99}
 \bibitem{fasticp}
